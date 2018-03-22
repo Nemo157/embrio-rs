@@ -10,3 +10,4 @@ extern crate futures;
 extern crate nrf51;
 
 pub mod timer;
+pub mod gpio;
