@@ -7,4 +7,7 @@ pub mod executor {
 
 #[cfg(feature = "nrf51")]
 pub mod nrf51 {
+    pub mod timer {
+        pub use embrio_nrf51::timer::Timer;
+    }
 }
