@@ -1,11 +1,12 @@
 #![no_std]
 
 #![feature(conservative_impl_trait)]
+#![feature(duration_extras)]
 #![feature(never_type)]
 #![feature(underscore_lifetimes)]
-#![feature(duration_extras)]
 
 extern crate cortex_m;
+extern crate embrio_core;
 extern crate futures;
 extern crate nrf51;
 

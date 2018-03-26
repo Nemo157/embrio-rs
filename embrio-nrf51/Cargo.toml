@@ -6,6 +6,7 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 [dependencies]
 cortex-m = "0.4.0"
 nrf51 = "0.4.0"
+embrio-core = { path = "../embrio-core" }
 
 [dependencies.futures]
 git = "https://github.com/Nemo157/futures-rs"

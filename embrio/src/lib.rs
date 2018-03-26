@@ -1,20 +1,28 @@
+extern crate embrio_core;
+
+#[cfg(feature = "executor")]
+extern crate embrio_executor;
+
+#[cfg(feature = "nrf51")]
+extern crate embrio_nrf51;
+
+pub mod gpio {
+    pub use embrio_core::gpio::Output;
+}
+
 #[cfg(feature = "executor")]
 pub mod executor {
-    extern crate embrio_executor;
-
-    pub use self::embrio_executor::Executor;
+    pub use embrio_executor::Executor;
 }
 
 #[cfg(feature = "nrf51")]
 pub mod nrf51 {
-    extern crate embrio_nrf51;
-
     pub mod timer {
-        pub use super::embrio_nrf51::timer::Timer;
+        pub use embrio_nrf51::timer::Timer;
     }
 
     pub mod gpio {
-        pub use super::embrio_nrf51::gpio::digital::Pin;
-        pub use super::embrio_nrf51::gpio::Pins;
+        pub use embrio_nrf51::gpio::digital::Pin;
+        pub use embrio_nrf51::gpio::Pins;
     }
 }

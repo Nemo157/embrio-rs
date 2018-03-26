@@ -1,5 +1,7 @@
 [workspace]
 members = [
   "embrio",
+  "embrio-core",
   "embrio-executor",
+  "embrio-nrf51",
 ]

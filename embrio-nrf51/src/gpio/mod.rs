@@ -1,4 +1,3 @@
-pub mod traits;
 pub mod digital;
 
 use nrf51::GPIO;

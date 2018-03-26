@@ -3,7 +3,7 @@ use core::fmt;
 use nrf51::GPIO;
 use nrf51::gpio::pin_cnf;
 
-use super::traits;
+use embrio_core;
 
 pub trait InputMode: Sized {
     fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W);
@@ -154,7 +154,7 @@ impl<'a, Mode: OutputMode> Pin<'a, Output<Mode>> {
     }
 }
 
-impl<'a, Mode: OutputMode> traits::Output for Pin<'a, Output<Mode>> {
+impl<'a, Mode: OutputMode> embrio_core::gpio::Output for Pin<'a, Output<Mode>> {
     fn state(&self) -> bool {
         (self.gpio.out.read().bits() & (1 << self.pin)) == (1 << self.pin)
     }
