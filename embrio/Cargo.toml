@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 
 [dependencies]
-embrio-executor = { path = "../embrio-executor" }
+embrio-executor = { path = "../embrio-executor", optional = true }
 embrio-nrf51 = { path = "../embrio-nrf51", optional = true }
 
 [features]
 default = []
+executor = ["embrio-executor"]
 nrf51 = ["embrio-nrf51"]
