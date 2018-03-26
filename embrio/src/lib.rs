@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+extern crate embrio_executor;
+
+pub mod executor {
+    pub use embrio_executor::Executor;
 }

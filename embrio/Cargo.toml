@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 
 [dependencies]
+embrio-executor = { path = "../embrio-executor" }
