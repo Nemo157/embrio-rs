@@ -6,23 +6,24 @@ use nrf51::gpio::pin_cnf;
 use embrio_core;
 
 pub trait InputMode: Sized {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W);
+    fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
 pub trait OutputMode: Sized {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W);
+    fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
 pub trait PinMode: Sized {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W);
+    fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Floating { _reserved: () }
 
 impl InputMode for Floating {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (Floating { _reserved: () }, w.pull().disabled())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.pull().disabled();
+        Floating { _reserved: () }
     }
 }
 
@@ -30,8 +31,9 @@ impl InputMode for Floating {
 pub struct PullUp { _reserved: () }
 
 impl InputMode for PullUp {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (PullUp { _reserved: () }, w.pull().pullup())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.pull().pullup();
+        PullUp { _reserved: () }
     }
 }
 
@@ -39,8 +41,9 @@ impl InputMode for PullUp {
 pub struct PullDown { _reserved: () }
 
 impl InputMode for PullDown {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (PullDown { _reserved: () }, w.pull().pulldown())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.pull().pulldown();
+        PullDown { _reserved: () }
     }
 }
 
@@ -48,8 +51,9 @@ impl InputMode for PullDown {
 pub struct PushPull { _reserved: () }
 
 impl OutputMode for PushPull {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (PushPull { _reserved: () }, w.drive().s0s1())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.drive().s0s1();
+        PushPull { _reserved: () }
     }
 }
 
@@ -57,8 +61,9 @@ impl OutputMode for PushPull {
 pub struct OpenDrain { _reserved: () }
 
 impl OutputMode for OpenDrain {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (OpenDrain { _reserved: () }, w.drive().s0d1())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.drive().s0d1();
+        OpenDrain { _reserved: () }
     }
 }
 
@@ -66,8 +71,9 @@ impl OutputMode for OpenDrain {
 pub struct Disabled { _reserved: () }
 
 impl PinMode for Disabled {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        (Disabled { _reserved: () }, w.dir().input().input().disconnect())
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.dir().input().input().disconnect();
+        Disabled { _reserved: () }
     }
 }
 
@@ -75,10 +81,9 @@ impl PinMode for Disabled {
 pub struct Input<Mode: InputMode> { mode: Mode }
 
 impl<Mode: InputMode> PinMode for Input<Mode> {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        let w = w.dir().input().input().connect();
-        let (mode, w) = Mode::apply(w);
-        (Input { mode }, w)
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.dir().input().input().connect();
+        Input { mode: Mode::apply(w) }
     }
 }
 
@@ -86,10 +91,9 @@ impl<Mode: InputMode> PinMode for Input<Mode> {
 pub struct Output<Mode: OutputMode> { mode: Mode }
 
 impl<Mode: OutputMode> PinMode for Output<Mode> {
-    fn apply<'a>(w: &'a mut pin_cnf::W) -> (Self, &'a mut pin_cnf::W) {
-        let w = w.dir().output();
-        let (mode, w) = Mode::apply(w);
-        (Output { mode }, w)
+    fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
+        w.dir().output();
+        Output { mode: Mode::apply(w) }
     }
 }
 
@@ -110,8 +114,7 @@ impl<'a, Mode: PinMode> Pin<'a, Mode> {
     fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
         let mut new_mode = None;
         self.gpio.pin_cnf[self.pin].write(|w| {
-            let (new, w) = NewMode::apply(w);
-            new_mode = Some(new);
+            new_mode = Some(NewMode::apply(w));
             w
         });
         Pin {
