@@ -1,10 +1,13 @@
-pub mod digital;
+pub mod mode;
+mod pin;
 
 use nrf51::GPIO;
 
+pub use self::pin::Pin;
+
 macro_rules! pin {
     ($s:expr) => {
-        digital::Pin<'a, digital::Disabled>
+        Pin<'a, mode::Disabled>
     }
 }
 
@@ -15,7 +18,7 @@ macro_rules! pins {
 
         impl<'a> Pins<'a> {
             pub fn new(gpio: &'a mut GPIO) -> Self {
-                Pins($(unsafe { digital::Pin::new(&*gpio, $i) }),*)
+                Pins($(Pin::new(&*gpio, $i)),*)
             }
         }
     }

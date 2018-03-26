@@ -24,7 +24,14 @@ pub mod nrf51 {
     }
 
     pub mod gpio {
-        pub use embrio_nrf51::gpio::digital::Pin;
-        pub use embrio_nrf51::gpio::Pins;
+        pub use embrio_nrf51::gpio::{Pin, Pins};
+
+        pub mod mode {
+            pub use embrio_nrf51::gpio::mode::{
+                InputMode, OutputMode, PinMode,
+                Floating, PullUp, PullDown, PushPull, OpenDrain,
+                Disabled, Input, Output,
+            };
+        }
     }
 }

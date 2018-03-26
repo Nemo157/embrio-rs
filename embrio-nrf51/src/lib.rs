@@ -4,6 +4,7 @@
 #![feature(duration_extras)]
 #![feature(never_type)]
 #![feature(underscore_lifetimes)]
+#![feature(in_band_lifetimes)]
 
 extern crate cortex_m;
 extern crate embrio_core;
