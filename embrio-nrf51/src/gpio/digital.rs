@@ -107,7 +107,7 @@ impl<'a> Pin<'a, Disabled> {
 }
 
 impl<'a, Mode: PinMode> Pin<'a, Mode> {
-    pub fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
+    fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
         let mut new_mode = None;
         self.gpio.pin_cnf[self.pin].write(|w| {
             let (new, w) = NewMode::apply(w);
@@ -149,7 +149,7 @@ impl<'a, Mode: OutputMode> Pin<'a, Output<Mode>> {
         self.set_mode()
     }
 
-    pub fn push_pull(self) -> Pin<'a, Output<OpenDrain>> {
+    pub fn push_pull(self) -> Pin<'a, Output<PushPull>> {
         self.set_mode()
     }
 }
