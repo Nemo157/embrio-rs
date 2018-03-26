@@ -8,8 +8,14 @@
 
 extern crate cortex_m;
 extern crate embrio_core;
-extern crate futures;
 extern crate nrf51;
+
+mod futures {
+    extern crate futures_core;
+    extern crate futures_util;
+    pub use self::futures_core::*;
+    pub use self::futures_util::*;
+}
 
 pub mod timer;
 pub mod gpio;
