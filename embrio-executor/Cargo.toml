@@ -7,11 +7,11 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 cortex-m = "0.4.0"
 
 [dependencies.futures-core]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]
 
 [dependencies.futures-stable]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]

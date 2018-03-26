@@ -9,10 +9,10 @@ nrf51 = "0.4.0"
 embrio-core = { path = "../embrio-core" }
 
 [dependencies.futures-core]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]
 
 [dependencies.futures-util]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+git = "https://github.com/Nemo157/futures-rs"
 default-features = false
