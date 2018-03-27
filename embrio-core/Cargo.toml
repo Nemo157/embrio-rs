@@ -9,8 +9,3 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]
-
-[dependencies.futures-stable]
-git = "https://github.com/Nemo157/futures-rs"
-default-features = false
-features = ["nightly"]

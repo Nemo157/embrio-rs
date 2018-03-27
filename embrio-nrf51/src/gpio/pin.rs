@@ -1,8 +1,6 @@
-use core::fmt;
-
 use nrf51::GPIO;
 
-use embrio_core;
+use embrio;
 
 use zst_ref::ZstRef;
 
@@ -12,6 +10,7 @@ use super::mode::{
     Disabled, Input, Output,
 };
 
+#[derive(Debug)]
 pub struct Pin<'a, Mode> {
     gpio: ZstRef<'a, GPIO>,
     // TODO: move pin number to const generic once available
@@ -36,6 +35,10 @@ impl<'a> Pin<'a, Disabled> {
 }
 
 impl<'a, Mode: PinMode> Pin<'a, Mode> {
+    pub(crate) fn get_id(&self) -> usize {
+        self.pin
+    }
+
     fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
         set_mode(self.gpio, self.pin)
     }
@@ -73,7 +76,7 @@ impl<'a, Mode: OutputMode> Pin<'a, Output<Mode>> {
     }
 }
 
-impl<'a, Mode: OutputMode> embrio_core::gpio::Output for Pin<'a, Output<Mode>> {
+impl<'a, Mode: OutputMode> embrio::gpio::Output for Pin<'a, Output<Mode>> {
     fn state(&self) -> bool {
         (self.gpio.out.read().bits() & (1 << self.pin)) == (1 << self.pin)
     }
@@ -84,16 +87,6 @@ impl<'a, Mode: OutputMode> embrio_core::gpio::Output for Pin<'a, Output<Mode>> {
         } else {
             self.gpio.outclr.write(|w| unsafe { w.bits(1 << self.pin) });
         }
-    }
-}
-
-impl<'a, Mode> fmt::Debug for Pin<'a, Mode> where Mode: fmt::Debug {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        f.debug_struct("Pin")
-            .field("gpio", &"GPIO")
-            .field("pin", &self.pin)
-            .field("mode", &self.mode)
-            .finish()
     }
 }
 

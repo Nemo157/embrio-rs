@@ -38,4 +38,8 @@ pub mod nrf51 {
             };
         }
     }
+
+    pub mod uart {
+        pub use embrio_nrf51::uart::{Uart, BAUDRATEW};
+    }
 }

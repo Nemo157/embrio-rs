@@ -1,14 +1,20 @@
 #![no_std]
-
+#![feature(arbitrary_self_types)]
 #![feature(conservative_impl_trait)]
+#![feature(core_intrinsics)]
 #![feature(duration_extras)]
-#![feature(never_type)]
-#![feature(underscore_lifetimes)]
 #![feature(in_band_lifetimes)]
+#![feature(never_type)]
+#![feature(pin)]
+#![feature(underscore_lifetimes)]
 
 extern crate cortex_m;
-extern crate embrio_core;
 extern crate nrf51;
+
+mod embrio {
+    extern crate embrio_core;
+    pub use self::embrio_core::*;
+}
 
 mod futures {
     extern crate futures_core;
@@ -19,5 +25,6 @@ mod futures {
 
 mod zst_ref;
 
-pub mod timer;
 pub mod gpio;
+pub mod timer;
+pub mod uart;

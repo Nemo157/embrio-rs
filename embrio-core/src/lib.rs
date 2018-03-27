@@ -5,7 +5,6 @@
 
 mod futures {
     extern crate futures_core;
-    pub extern crate futures_stable as stable;
     pub use self::futures_core::*;
 }
 
