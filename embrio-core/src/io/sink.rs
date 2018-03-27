@@ -2,7 +2,7 @@ use core::mem::Pin;
 
 use futures::{task, Async, Poll};
 
-use Write;
+use io::Write;
 
 pub struct Sink {
     _marker: (),

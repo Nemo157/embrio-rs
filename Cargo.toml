@@ -3,6 +3,5 @@ members = [
   "embrio",
   "embrio-core",
   "embrio-executor",
-  "embrio-io",
   "embrio-nrf51",
 ]

@@ -2,9 +2,6 @@
 
 extern crate embrio_core;
 
-#[cfg(feature = "io")]
-extern crate embrio_io;
-
 #[cfg(feature = "executor")]
 extern crate embrio_executor;
 
@@ -15,9 +12,8 @@ pub mod gpio {
     pub use embrio_core::gpio::Output;
 }
 
-#[cfg(feature = "io")]
 pub mod io {
-    pub use embrio_io::{Read, Write};
+    pub use embrio_core::io::{sink, Read, Write};
 }
 
 #[cfg(feature = "executor")]
