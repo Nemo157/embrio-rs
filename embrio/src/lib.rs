@@ -1,6 +1,7 @@
 #![no_std]
 
 extern crate embrio_core;
+extern crate embrio_util;
 
 #[cfg(feature = "executor")]
 extern crate embrio_executor;
@@ -14,6 +15,7 @@ pub mod gpio {
 
 pub mod io {
     pub use embrio_core::io::{sink, Read, Write};
+    pub use embrio_util::io::{read_exact, write_all, flush, close};
 }
 
 #[cfg(feature = "executor")]
