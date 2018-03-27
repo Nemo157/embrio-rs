@@ -92,3 +92,20 @@ impl<Mode: OutputMode> PinMode for Output<Mode> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use core::mem;
+
+    // TODO: Static assert with const size_of fn?
+    #[test]
+    fn zst() {
+        assert!(mem::size_of::<Input<Floating>>() == 0);
+        assert!(mem::size_of::<Input<PullUp>>() == 0);
+        assert!(mem::size_of::<Input<PullDown>>() == 0);
+        assert!(mem::size_of::<Output<PushPull>>() == 0);
+        assert!(mem::size_of::<Output<OpenDrain>>() == 0);
+        assert!(mem::size_of::<Disabled>() == 0);
+    }
+}

@@ -4,6 +4,8 @@ use nrf51::GPIO;
 
 use embrio_core;
 
+use zst_ref::ZstRef;
+
 use super::mode::{
     InputMode, OutputMode, PinMode,
     Floating, PullUp, PullDown, PushPull, OpenDrain,
@@ -11,13 +13,13 @@ use super::mode::{
 };
 
 pub struct Pin<'a, Mode> {
-    gpio: &'a GPIO,
+    gpio: ZstRef<'a, GPIO>,
     // TODO: move pin number to const generic once available
     pin: usize,
     mode: Mode,
 }
 
-fn set_mode<Mode: PinMode>(gpio: &'a GPIO, pin: usize) -> Pin<'a, Mode> {
+fn set_mode<Mode: PinMode>(gpio: ZstRef<'a, GPIO>, pin: usize) -> Pin<'a, Mode> {
     let mut mode = None;
     gpio.pin_cnf[pin].write(|w| {
         mode = Some(Mode::apply(w));
@@ -29,7 +31,7 @@ fn set_mode<Mode: PinMode>(gpio: &'a GPIO, pin: usize) -> Pin<'a, Mode> {
 
 impl<'a> Pin<'a, Disabled> {
     pub(crate) fn new(gpio: &'a GPIO, pin: usize) -> Self {
-        set_mode(gpio, pin)
+        set_mode(ZstRef::new(gpio), pin)
     }
 }
 
@@ -92,5 +94,19 @@ impl<'a, Mode> fmt::Debug for Pin<'a, Mode> where Mode: fmt::Debug {
             .field("pin", &self.pin)
             .field("mode", &self.mode)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use core::mem;
+
+    // TODO: Static assert with const size_of fn?
+    // TODO: Will be zst once pin number is moved to const generic
+    #[test]
+    fn almost_zst() {
+        assert!(mem::size_of::<Pin<Input<Floating>>>() == mem::size_of::<usize>());
     }
 }

@@ -17,5 +17,7 @@ mod futures {
     pub use self::futures_util::*;
 }
 
+mod zst_ref;
+
 pub mod timer;
 pub mod gpio;
