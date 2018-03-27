@@ -1,0 +1,16 @@
+[package]
+name = "embrio-io"
+version = "0.1.0"
+authors = ["Wim Looman <wim.looman@kiwi.ki>"]
+
+[dependencies]
+
+[dependencies.futures-core]
+git = "https://github.com/Nemo157/futures-rs"
+default-features = false
+features = ["nightly"]
+
+[dependencies.futures-stable]
+git = "https://github.com/Nemo157/futures-rs"
+default-features = false
+features = ["nightly"]

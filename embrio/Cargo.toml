@@ -6,9 +6,11 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 [dependencies]
 embrio-core = { path = "../embrio-core" }
 embrio-executor = { path = "../embrio-executor", optional = true }
+embrio-io = { path = "../embrio-io", optional = true }
 embrio-nrf51 = { path = "../embrio-nrf51", optional = true }
 
 [features]
 default = []
 executor = ["embrio-executor"]
+io = ["embrio-io"]
 nrf51 = ["embrio-nrf51"]
