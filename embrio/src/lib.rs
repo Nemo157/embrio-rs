@@ -15,7 +15,7 @@ pub mod gpio {
 
 pub mod io {
     pub use embrio_core::io::{sink, Read, Write, Cursor};
-    pub use embrio_util::io::{read_exact, write_all, flush, close};
+    pub use embrio_util::io::{read_exact, write_all, flush, close, Error};
 }
 
 #[cfg(feature = "executor")]
