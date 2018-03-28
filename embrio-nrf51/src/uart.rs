@@ -41,6 +41,9 @@ impl<'a> Uart<'a> {
         uart.baudrate.write(|w| w.baudrate().variant(speed));
         uart.enable.write(|w| w.enable().enabled());
 
+        uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
+        uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
+
         let uart = ZstRef::new(uart);
         Uart { uart, _txpin: txpin, _rxpin: rxpin }
     }
