@@ -1,14 +1,17 @@
 use nrf51::gpio::pin_cnf;
 
 pub trait InputMode: Sized {
+    #[inline(always)]
     fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
 pub trait OutputMode: Sized {
+    #[inline(always)]
     fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
 pub trait PinMode: Sized {
+    #[inline(always)]
     fn apply(w: &mut pin_cnf::W) -> Self;
 }
 
@@ -53,6 +56,7 @@ pub struct Output<Mode: OutputMode> {
 }
 
 impl InputMode for Floating {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.pull().disabled();
         Floating { _reserved: () }
@@ -60,6 +64,7 @@ impl InputMode for Floating {
 }
 
 impl InputMode for PullUp {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.pull().pullup();
         PullUp { _reserved: () }
@@ -67,6 +72,7 @@ impl InputMode for PullUp {
 }
 
 impl InputMode for PullDown {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.pull().pulldown();
         PullDown { _reserved: () }
@@ -74,6 +80,7 @@ impl InputMode for PullDown {
 }
 
 impl OutputMode for PushPull {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.drive().s0s1();
         PushPull { _reserved: () }
@@ -81,6 +88,7 @@ impl OutputMode for PushPull {
 }
 
 impl OutputMode for OpenDrain {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.drive().s0d1();
         OpenDrain { _reserved: () }
@@ -88,6 +96,7 @@ impl OutputMode for OpenDrain {
 }
 
 impl PinMode for Disabled {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.dir().input().input().disconnect();
         Disabled { _reserved: () }
@@ -95,6 +104,7 @@ impl PinMode for Disabled {
 }
 
 impl<Mode: InputMode> PinMode for Input<Mode> {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.dir().input().input().connect();
         Input {
@@ -104,6 +114,7 @@ impl<Mode: InputMode> PinMode for Input<Mode> {
 }
 
 impl<Mode: OutputMode> PinMode for Output<Mode> {
+    #[inline(always)]
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.dir().output();
         Output {

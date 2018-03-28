@@ -33,54 +33,65 @@ fn set_mode<Mode: PinMode>(
 }
 
 impl<'a> Pin<'a, Disabled> {
+    #[inline(always)]
     pub(crate) fn new(gpio: &'a GPIO, pin: usize) -> Self {
         set_mode(ZstRef::new(gpio), pin)
     }
 }
 
 impl<'a, Mode: PinMode> Pin<'a, Mode> {
+    #[inline(always)]
     pub(crate) fn get_id(&self) -> usize {
         self.pin
     }
 
+    #[inline(always)]
     fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
         set_mode(self.gpio, self.pin)
     }
 
+    #[inline(always)]
     pub fn output(self) -> Pin<'a, Output<PushPull>> {
         self.set_mode()
     }
 
+    #[inline(always)]
     pub fn input(self) -> Pin<'a, Input<Floating>> {
         self.set_mode()
     }
 }
 
 impl<'a, Mode: InputMode> Pin<'a, Input<Mode>> {
+    #[inline(always)]
     pub fn floating(self) -> Pin<'a, Input<Floating>> {
         self.set_mode()
     }
 
+    #[inline(always)]
     pub fn pull_up(self) -> Pin<'a, Input<PullUp>> {
         self.set_mode()
     }
 
+    #[inline(always)]
     pub fn pull_down(self) -> Pin<'a, Input<PullDown>> {
         self.set_mode()
     }
 }
 
 impl<'a, Mode: OutputMode> Pin<'a, Output<Mode>> {
+    #[inline(always)]
     pub fn open_drain(self) -> Pin<'a, Output<OpenDrain>> {
         self.set_mode()
     }
 
+    #[inline(always)]
     pub fn push_pull(self) -> Pin<'a, Output<PushPull>> {
         self.set_mode()
     }
 }
 
 impl<'a, Mode: OutputMode> embrio::gpio::Output for Pin<'a, Output<Mode>> {
+    #[inline(always)]
     fn state(&self) -> bool {
         (self.gpio.out.read().bits() & (1 << self.pin)) == (1 << self.pin)
     }
