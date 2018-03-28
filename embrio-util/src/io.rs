@@ -17,7 +17,15 @@ impl<T> From<T> for Error<T> {
     }
 }
 
-pub fn read_exact<'a, R: Read + 'a>(this: &'a mut Pin<'a, R>, buf: &'a mut [u8]) -> impl StableFuture<Item=(), Error=Error<R::Error>> + 'a {
+pub trait Captures<'a> {
+}
+
+impl<'a, T: ?Sized> Captures<'a> for T {
+}
+
+pub fn read_exact<'a, 'b: 'a, R: Read + 'a>(this: &'a mut Pin<'a, R>, buf: &'b mut [u8])
+    -> impl StableFuture<Item=(), Error=Error<R::Error>> + Captures<'a> + Captures<'b>
+{
     async_block_pinned! {
         let mut position = 0;
         while position < buf.len() {
@@ -31,7 +39,9 @@ pub fn read_exact<'a, R: Read + 'a>(this: &'a mut Pin<'a, R>, buf: &'a mut [u8])
     }
 }
 
-pub fn write_all<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>, buf: &'a [u8]) -> impl StableFuture<Item=(), Error=Error<W::Error>> + 'a {
+pub fn write_all<'a, 'b: 'a, W: Write + 'a>(this: &'a mut Pin<'a, W>, buf: &'b [u8])
+    -> impl StableFuture<Item=(), Error=Error<W::Error>> + Captures<'a> + Captures<'b>
+{
     async_block_pinned! {
         let mut position = 0;
         while position < buf.len() {
@@ -45,14 +55,18 @@ pub fn write_all<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>, buf: &'a [u8]) -> 
     }
 }
 
-pub fn flush<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>) -> impl StableFuture<Item=(), Error=W::Error> + 'a {
+pub fn flush<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>)
+    -> impl StableFuture<Item=(), Error=W::Error> + Captures<'a>
+{
     async_block_pinned! {
         await_poll!(|cx| Pin::borrow(this).poll_flush(cx))?;
         Ok(())
     }
 }
 
-pub fn close<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>) -> impl StableFuture<Item=(), Error=W::Error> + 'a {
+pub fn close<'a, W: Write + 'a>(this: &'a mut Pin<'a, W>)
+    -> impl StableFuture<Item=(), Error=W::Error> + Captures<'a>
+{
     async_block_pinned! {
         await_poll!(|cx| Pin::borrow(this).poll_close(cx))?;
         Ok(())
