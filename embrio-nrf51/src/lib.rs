@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(arbitrary_self_types)]
-#![feature(conservative_impl_trait)]
 #![feature(core_intrinsics)]
 #![feature(duration_extras)]
 #![feature(in_band_lifetimes)]
