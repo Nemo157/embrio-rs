@@ -6,7 +6,9 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 [dependencies]
 cortex-m = "0.4.0"
 nrf51 = "0.4.0"
-embrio-core = { path = "../embrio-core" }
+
+[dependencies.embrio-core]
+path = "../embrio-core"
 
 [dependencies.futures-core]
 git = "https://github.com/Nemo157/futures-rs"
@@ -16,6 +18,12 @@ features = ["nightly"]
 [dependencies.futures-util]
 git = "https://github.com/Nemo157/futures-rs"
 default-features = false
+
+[dependencies.uom]
+git = "https://github.com/iliekturtles/uom"
+branch = "dev-num-std"
+default-features = false
+features = ["si", "u32"]
 
 [features]
 default = []

@@ -1,8 +1,8 @@
-use core::time::Duration;
-use core::u32;
-
+use uom::si::time::microsecond;
 use futures::{task, Async, Future, FutureExt, Poll, Stream, StreamExt};
 use nrf51::TIMER0;
+
+use units::Time;
 
 pub struct Timer(TIMER0);
 
@@ -26,7 +26,7 @@ impl Timer {
 impl Timer {
     pub fn timeout(
         &mut self,
-        duration: Duration,
+        duration: Time,
     ) -> impl Future<Item = (), Error = !> + '_ {
         self.interval(duration)
             .next()
@@ -36,15 +36,9 @@ impl Timer {
 
     pub fn interval(
         &mut self,
-        duration: Duration,
+        duration: Time,
     ) -> impl Stream<Item = (), Error = !> + '_ {
-        assert!(
-            duration.as_secs()
-                < ((u32::MAX - duration.subsec_micros()) / 1_000_000) as u64
-        );
-
-        let us =
-            (duration.as_secs() as u32) * 1_000_000 + duration.subsec_micros();
+        let us = duration.get(microsecond);
         self.0.cc[0].write(|w| unsafe { w.bits(us) });
 
         self.0.events_compare[0].reset();
