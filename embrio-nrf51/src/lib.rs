@@ -6,6 +6,7 @@
 #![feature(never_type)]
 #![feature(pin)]
 #![feature(underscore_lifetimes)]
+#![feature(specialization)]
 
 extern crate cortex_m;
 extern crate nrf51;

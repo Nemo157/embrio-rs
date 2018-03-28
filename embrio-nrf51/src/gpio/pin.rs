@@ -4,8 +4,8 @@ use embrio;
 
 use zst_ref::ZstRef;
 
-use super::mode::{Disabled, Floating, Input, InputMode, OpenDrain, Output,
-                  OutputMode, PinMode, PullDown, PullUp, PushPull};
+use super::mode::{Disabled, Floating, Input, OpenDrain, Output, OutputMode,
+                  PinMode, PullDown, PullUp, PushPull, Unconfigured};
 
 #[derive(Debug)]
 pub struct Pin<'a, Mode> {
@@ -15,78 +15,120 @@ pub struct Pin<'a, Mode> {
     mode: Mode,
 }
 
-fn set_mode<Mode: PinMode>(
-    gpio: ZstRef<'a, GPIO>,
-    pin: usize,
-) -> Pin<'a, Mode> {
-    let mut mode = None;
-    gpio.pin_cnf[pin].write(|w| {
-        mode = Some(Mode::apply(w));
-        w
-    });
-    let mode = mode.expect("write is guaranteed to set this");
-    Pin {
-        gpio,
-        pin,
-        mode,
-    }
+trait Reconfigure<'a, Mode> {
+    fn reconfigure(self) -> Pin<'a, Mode>;
 }
 
-impl<'a> Pin<'a, Disabled> {
+impl<'a> Pin<'a, Unconfigured> {
     #[inline(always)]
     pub(crate) fn new(gpio: &'a GPIO, pin: usize) -> Self {
-        set_mode(ZstRef::new(gpio), pin)
+        Pin {
+            gpio: ZstRef::new(gpio),
+            pin,
+            mode: Unconfigured::new(),
+        }
     }
 }
 
-impl<'a, Mode: PinMode> Pin<'a, Mode> {
+impl<'a, Mode, NewMode: PinMode> Reconfigure<'a, NewMode> for Pin<'a, Mode> {
+    #[inline(always)]
+    default fn reconfigure(self) -> Pin<'a, NewMode> {
+        let Pin { gpio, pin, .. } = self;
+        let mut mode = None;
+        gpio.pin_cnf[pin].write(|w| {
+            mode = Some(NewMode::apply(w));
+            w
+        });
+        let mode = mode.expect("write is guaranteed to set this");
+        Pin {
+            gpio,
+            pin,
+            mode,
+        }
+    }
+}
+
+impl<'a, Mode> Reconfigure<'a, Unconfigured> for Pin<'a, Mode> {
+    #[inline(always)]
+    fn reconfigure(self) -> Pin<'a, Unconfigured> {
+        Pin {
+            gpio: self.gpio,
+            pin: self.pin,
+            mode: Unconfigured::new(),
+        }
+    }
+}
+
+impl<'a, Mode> Reconfigure<'a, Input<Unconfigured>> for Pin<'a, Mode> {
+    #[inline(always)]
+    fn reconfigure(self) -> Pin<'a, Input<Unconfigured>> {
+        Pin {
+            gpio: self.gpio,
+            pin: self.pin,
+            mode: Input::new(),
+        }
+    }
+}
+
+impl<'a, Mode> Reconfigure<'a, Output<Unconfigured>> for Pin<'a, Mode> {
+    #[inline(always)]
+    fn reconfigure(self) -> Pin<'a, Output<Unconfigured>> {
+        Pin {
+            gpio: self.gpio,
+            pin: self.pin,
+            mode: Output::new(),
+        }
+    }
+}
+
+impl<'a, Mode> Pin<'a, Mode> {
     #[inline(always)]
     pub(crate) fn get_id(&self) -> usize {
         self.pin
     }
 
     #[inline(always)]
-    fn set_mode<NewMode: PinMode>(self) -> Pin<'a, NewMode> {
-        set_mode(self.gpio, self.pin)
+    pub fn disable(self) -> Pin<'a, Disabled> {
+        self.reconfigure()
     }
 
     #[inline(always)]
-    pub fn output(self) -> Pin<'a, Output<PushPull>> {
-        self.set_mode()
+    pub fn output(self) -> Pin<'a, Output<Unconfigured>> {
+        self.reconfigure()
     }
 
     #[inline(always)]
-    pub fn input(self) -> Pin<'a, Input<Floating>> {
-        self.set_mode()
+    pub fn input(self) -> Pin<'a, Input<Unconfigured>> {
+        self.reconfigure()
     }
 }
 
-impl<'a, Mode: InputMode> Pin<'a, Input<Mode>> {
+impl<'a, Mode> Pin<'a, Input<Mode>> {
     #[inline(always)]
     pub fn floating(self) -> Pin<'a, Input<Floating>> {
-        self.set_mode()
+        self.reconfigure()
     }
 
     #[inline(always)]
     pub fn pull_up(self) -> Pin<'a, Input<PullUp>> {
-        self.set_mode()
+        self.reconfigure()
     }
 
     #[inline(always)]
     pub fn pull_down(self) -> Pin<'a, Input<PullDown>> {
-        self.set_mode()
+        self.reconfigure()
     }
 }
 
-impl<'a, Mode: OutputMode> Pin<'a, Output<Mode>> {
+impl<'a, Mode> Pin<'a, Output<Mode>> {
     #[inline(always)]
     pub fn open_drain(self) -> Pin<'a, Output<OpenDrain>> {
-        self.set_mode()
+        self.reconfigure()
     }
 
     #[inline(always)]
     pub fn push_pull(self) -> Pin<'a, Output<PushPull>> {
-        self.set_mode()
+        self.reconfigure()
     }
 }
 

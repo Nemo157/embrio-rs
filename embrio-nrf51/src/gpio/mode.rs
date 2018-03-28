@@ -41,17 +41,22 @@ pub struct OpenDrain {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct Unconfigured {
+    _reserved: (),
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct Disabled {
     _reserved: (),
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Input<Mode: InputMode> {
+pub struct Input<Mode> {
     mode: Mode,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Output<Mode: OutputMode> {
+pub struct Output<Mode> {
     mode: Mode,
 }
 
@@ -123,6 +128,28 @@ impl<Mode: OutputMode> PinMode for Output<Mode> {
     }
 }
 
+impl Unconfigured {
+    pub(crate) fn new() -> Self {
+        Unconfigured { _reserved: () }
+    }
+}
+
+impl Input<Unconfigured> {
+    pub(crate) fn new() -> Self {
+        Input {
+            mode: Unconfigured { _reserved: () },
+        }
+    }
+}
+
+impl Output<Unconfigured> {
+    pub(crate) fn new() -> Self {
+        Output {
+            mode: Unconfigured { _reserved: () },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,11 +159,14 @@ mod tests {
     // TODO: Static assert with const size_of fn?
     #[test]
     fn zst() {
+        assert!(mem::size_of::<Input<Unconfigured>>() == 0);
         assert!(mem::size_of::<Input<Floating>>() == 0);
         assert!(mem::size_of::<Input<PullUp>>() == 0);
         assert!(mem::size_of::<Input<PullDown>>() == 0);
+        assert!(mem::size_of::<Output<Unconfigured>>() == 0);
         assert!(mem::size_of::<Output<PushPull>>() == 0);
         assert!(mem::size_of::<Output<OpenDrain>>() == 0);
         assert!(mem::size_of::<Disabled>() == 0);
+        assert!(mem::size_of::<Unconfigured>() == 0);
     }
 }

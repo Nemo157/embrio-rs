@@ -7,7 +7,7 @@ pub use self::pin::Pin;
 
 macro_rules! pin {
     ($s:expr) => {
-        Pin<'a, mode::Disabled>
+        Pin<'a, mode::Unconfigured>
     }
 }
 
