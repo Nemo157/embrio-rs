@@ -14,8 +14,8 @@ pub mod gpio {
 }
 
 pub mod io {
-    pub use embrio_core::io::{sink, Read, Write, Cursor};
-    pub use embrio_util::io::{read_exact, write_all, flush, close, Error};
+    pub use embrio_core::io::{sink, Cursor, Read, Write};
+    pub use embrio_util::io::{close, flush, read_exact, write_all, Error};
 }
 
 #[cfg(feature = "executor")]
@@ -33,11 +33,10 @@ pub mod nrf51 {
         pub use embrio_nrf51::gpio::{Pin, Pins};
 
         pub mod mode {
-            pub use embrio_nrf51::gpio::mode::{
-                InputMode, OutputMode, PinMode,
-                Floating, PullUp, PullDown, PushPull, OpenDrain,
-                Disabled, Input, Output,
-            };
+            pub use embrio_nrf51::gpio::mode::{Disabled, Floating, Input,
+                                               InputMode, OpenDrain, Output,
+                                               OutputMode, PinMode, PullDown,
+                                               PullUp, PushPull};
         }
     }
 

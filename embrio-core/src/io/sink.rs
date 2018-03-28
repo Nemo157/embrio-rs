@@ -15,15 +15,25 @@ pub fn sink() -> Sink {
 impl Write for Sink {
     type Error = !;
 
-    fn poll_write(self: Pin<Self>, _cx: &mut task::Context, buf: &[u8]) -> Poll<usize, Self::Error> {
+    fn poll_write(
+        self: Pin<Self>,
+        _cx: &mut task::Context,
+        buf: &[u8],
+    ) -> Poll<usize, Self::Error> {
         Ok(Async::Ready(buf.len()))
     }
 
-    fn poll_flush(self: Pin<Self>, _cx: &mut task::Context) -> Poll<(), Self::Error> {
+    fn poll_flush(
+        self: Pin<Self>,
+        _cx: &mut task::Context,
+    ) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
     }
 
-    fn poll_close(self: Pin<Self>, _cx: &mut task::Context) -> Poll<(), Self::Error> {
+    fn poll_close(
+        self: Pin<Self>,
+        _cx: &mut task::Context,
+    ) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
     }
 }

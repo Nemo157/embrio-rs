@@ -37,10 +37,17 @@ impl<T: AsMut<[u8]>> Cursor<T> {
     }
 }
 
-impl<T: AsMut<[u8]>> Write for Cursor<T> where Self: Unpin {
+impl<T: AsMut<[u8]>> Write for Cursor<T>
+where
+    Self: Unpin,
+{
     type Error = !;
 
-    fn poll_write(mut self: Pin<Self>, _cx: &mut task::Context, buf: &[u8]) -> Poll<usize, Self::Error> {
+    fn poll_write(
+        mut self: Pin<Self>,
+        _cx: &mut task::Context,
+        buf: &[u8],
+    ) -> Poll<usize, Self::Error> {
         let len = {
             let position = self.position;
             let inner = &mut self.inner.as_mut()[position..];
@@ -52,11 +59,17 @@ impl<T: AsMut<[u8]>> Write for Cursor<T> where Self: Unpin {
         Ok(Async::Ready(len))
     }
 
-    fn poll_flush(self: Pin<Self>, _cx: &mut task::Context) -> Poll<(), Self::Error> {
+    fn poll_flush(
+        self: Pin<Self>,
+        _cx: &mut task::Context,
+    ) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
     }
 
-    fn poll_close(self: Pin<Self>, _cx: &mut task::Context) -> Poll<(), Self::Error> {
+    fn poll_close(
+        self: Pin<Self>,
+        _cx: &mut task::Context,
+    ) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
     }
 }

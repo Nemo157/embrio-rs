@@ -1,6 +1,6 @@
 use core::{ptr, convert::From};
 
-use futures::task::{Waker, UnsafeWake};
+use futures::task::{UnsafeWake, Waker};
 
 pub struct WFEWaker;
 
@@ -25,4 +25,3 @@ impl From<WFEWaker> for Waker {
         }
     }
 }
-

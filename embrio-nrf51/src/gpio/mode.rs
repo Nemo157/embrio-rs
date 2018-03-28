@@ -13,28 +13,44 @@ pub trait PinMode: Sized {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Floating { _reserved: () }
+pub struct Floating {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct PullUp { _reserved: () }
+pub struct PullUp {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct PullDown { _reserved: () }
+pub struct PullDown {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct PushPull { _reserved: () }
+pub struct PushPull {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct OpenDrain { _reserved: () }
+pub struct OpenDrain {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct Disabled { _reserved: () }
+pub struct Disabled {
+    _reserved: (),
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct Input<Mode: InputMode> { mode: Mode }
+pub struct Input<Mode: InputMode> {
+    mode: Mode,
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct Output<Mode: OutputMode> { mode: Mode }
+pub struct Output<Mode: OutputMode> {
+    mode: Mode,
+}
 
 impl InputMode for Floating {
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
@@ -81,14 +97,18 @@ impl PinMode for Disabled {
 impl<Mode: InputMode> PinMode for Input<Mode> {
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.dir().input().input().connect();
-        Input { mode: Mode::apply(w) }
+        Input {
+            mode: Mode::apply(w),
+        }
     }
 }
 
 impl<Mode: OutputMode> PinMode for Output<Mode> {
     fn apply<'a>(w: &'a mut pin_cnf::W) -> Self {
         w.dir().output();
-        Output { mode: Mode::apply(w) }
+        Output {
+            mode: Mode::apply(w),
+        }
     }
 }
 

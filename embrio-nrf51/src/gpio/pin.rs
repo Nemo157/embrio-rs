@@ -4,11 +4,8 @@ use embrio;
 
 use zst_ref::ZstRef;
 
-use super::mode::{
-    InputMode, OutputMode, PinMode,
-    Floating, PullUp, PullDown, PushPull, OpenDrain,
-    Disabled, Input, Output,
-};
+use super::mode::{Disabled, Floating, Input, InputMode, OpenDrain, Output,
+                  OutputMode, PinMode, PullDown, PullUp, PushPull};
 
 #[derive(Debug)]
 pub struct Pin<'a, Mode> {
@@ -18,14 +15,21 @@ pub struct Pin<'a, Mode> {
     mode: Mode,
 }
 
-fn set_mode<Mode: PinMode>(gpio: ZstRef<'a, GPIO>, pin: usize) -> Pin<'a, Mode> {
+fn set_mode<Mode: PinMode>(
+    gpio: ZstRef<'a, GPIO>,
+    pin: usize,
+) -> Pin<'a, Mode> {
     let mut mode = None;
     gpio.pin_cnf[pin].write(|w| {
         mode = Some(Mode::apply(w));
         w
     });
     let mode = mode.expect("write is guaranteed to set this");
-    Pin { gpio, pin, mode }
+    Pin {
+        gpio,
+        pin,
+        mode,
+    }
 }
 
 impl<'a> Pin<'a, Disabled> {
@@ -83,9 +87,13 @@ impl<'a, Mode: OutputMode> embrio::gpio::Output for Pin<'a, Output<Mode>> {
 
     fn set_state(&self, state: bool) {
         if state {
-            self.gpio.outset.write(|w| unsafe { w.bits(1 << self.pin) });
+            self.gpio
+                .outset
+                .write(|w| unsafe { w.bits(1 << self.pin) });
         } else {
-            self.gpio.outclr.write(|w| unsafe { w.bits(1 << self.pin) });
+            self.gpio
+                .outclr
+                .write(|w| unsafe { w.bits(1 << self.pin) });
         }
     }
 }
@@ -100,6 +108,8 @@ mod tests {
     // TODO: Will be zst once pin number is moved to const generic
     #[test]
     fn almost_zst() {
-        assert!(mem::size_of::<Pin<Input<Floating>>>() == mem::size_of::<usize>());
+        assert!(
+            mem::size_of::<Pin<Input<Floating>>>() == mem::size_of::<usize>()
+        );
     }
 }
