@@ -129,12 +129,14 @@ impl<Mode: OutputMode> PinMode for Output<Mode> {
 }
 
 impl Unconfigured {
+    #[inline(always)]
     pub(crate) fn new() -> Self {
         Unconfigured { _reserved: () }
     }
 }
 
 impl Input<Unconfigured> {
+    #[inline(always)]
     pub(crate) fn new() -> Self {
         Input {
             mode: Unconfigured { _reserved: () },
@@ -143,6 +145,7 @@ impl Input<Unconfigured> {
 }
 
 impl Output<Unconfigured> {
+    #[inline(always)]
     pub(crate) fn new() -> Self {
         Output {
             mode: Unconfigured { _reserved: () },

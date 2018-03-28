@@ -31,7 +31,6 @@ impl<'a> Pin<'a, Unconfigured> {
 }
 
 impl<'a, Mode, NewMode: PinMode> Reconfigure<'a, NewMode> for Pin<'a, Mode> {
-    #[inline(always)]
     default fn reconfigure(self) -> Pin<'a, NewMode> {
         let Pin { gpio, pin, .. } = self;
         let mut mode = None;
@@ -133,7 +132,6 @@ impl<'a, Mode> Pin<'a, Output<Mode>> {
 }
 
 impl<'a, Mode: OutputMode> embrio::gpio::Output for Pin<'a, Output<Mode>> {
-    #[inline(always)]
     fn state(&self) -> bool {
         (self.gpio.out.read().bits() & (1 << self.pin)) == (1 << self.pin)
     }
