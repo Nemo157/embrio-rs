@@ -20,7 +20,7 @@ trait Reconfigure<'a, Mode> {
 }
 
 impl<'a> Pin<'a, Unconfigured> {
-    #[inline(always)]
+    #[inline]
     pub(crate) fn new(gpio: &'a GPIO, pin: usize) -> Self {
         Pin {
             gpio: ZstRef::new(gpio),
@@ -48,7 +48,7 @@ impl<'a, Mode, NewMode: PinMode> Reconfigure<'a, NewMode> for Pin<'a, Mode> {
 }
 
 impl<'a, Mode> Reconfigure<'a, Unconfigured> for Pin<'a, Mode> {
-    #[inline(always)]
+    #[inline]
     fn reconfigure(self) -> Pin<'a, Unconfigured> {
         Pin {
             gpio: self.gpio,
@@ -59,7 +59,7 @@ impl<'a, Mode> Reconfigure<'a, Unconfigured> for Pin<'a, Mode> {
 }
 
 impl<'a, Mode> Reconfigure<'a, Input<Unconfigured>> for Pin<'a, Mode> {
-    #[inline(always)]
+    #[inline]
     fn reconfigure(self) -> Pin<'a, Input<Unconfigured>> {
         Pin {
             gpio: self.gpio,
@@ -70,7 +70,7 @@ impl<'a, Mode> Reconfigure<'a, Input<Unconfigured>> for Pin<'a, Mode> {
 }
 
 impl<'a, Mode> Reconfigure<'a, Output<Unconfigured>> for Pin<'a, Mode> {
-    #[inline(always)]
+    #[inline]
     fn reconfigure(self) -> Pin<'a, Output<Unconfigured>> {
         Pin {
             gpio: self.gpio,
@@ -81,51 +81,51 @@ impl<'a, Mode> Reconfigure<'a, Output<Unconfigured>> for Pin<'a, Mode> {
 }
 
 impl<'a, Mode> Pin<'a, Mode> {
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get_id(&self) -> usize {
         self.pin
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn disable(self) -> Pin<'a, Disabled> {
         self.reconfigure()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn output(self) -> Pin<'a, Output<Unconfigured>> {
         self.reconfigure()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn input(self) -> Pin<'a, Input<Unconfigured>> {
         self.reconfigure()
     }
 }
 
 impl<'a, Mode> Pin<'a, Input<Mode>> {
-    #[inline(always)]
+    #[inline]
     pub fn floating(self) -> Pin<'a, Input<Floating>> {
         self.reconfigure()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn pull_up(self) -> Pin<'a, Input<PullUp>> {
         self.reconfigure()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn pull_down(self) -> Pin<'a, Input<PullDown>> {
         self.reconfigure()
     }
 }
 
 impl<'a, Mode> Pin<'a, Output<Mode>> {
-    #[inline(always)]
+    #[inline]
     pub fn open_drain(self) -> Pin<'a, Output<OpenDrain>> {
         self.reconfigure()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn push_pull(self) -> Pin<'a, Output<PushPull>> {
         self.reconfigure()
     }

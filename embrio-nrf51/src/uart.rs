@@ -75,7 +75,7 @@ impl<'a> embrio::io::Read for Rx<'a> {
         _cx: &mut task::Context,
         buf: &mut [u8],
     ) -> Poll<usize, Self::Error> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(Async::Ready(0));
         }
 
@@ -99,7 +99,7 @@ impl<'a> embrio::io::Write for Tx<'a> {
         _cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<usize, Self::Error> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(Async::Ready(0));
         }
 

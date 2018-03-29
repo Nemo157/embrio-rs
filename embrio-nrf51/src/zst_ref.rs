@@ -24,7 +24,7 @@ impl<'a, T: 'a> Deref for ZstRef<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*(0xDEADBEEF as *const T) }
+        unsafe { &*(0xDEAD_BEEF as *const T) }
     }
 }
 

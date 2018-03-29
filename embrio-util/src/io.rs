@@ -63,18 +63,18 @@ pub fn write_all<'a, 'b: 'a, W: Write + 'a>(
     }
 }
 
-pub fn flush<'a, W: Write + 'a>(
+pub fn flush<'a, W: Write>(
     mut this: Pin<'a, W>,
-) -> impl StableFuture<Item = (), Error = W::Error> + Captures<'a> {
+) -> impl StableFuture<Item = (), Error = W::Error> + 'a {
     async_block_pinned! {
         await_poll!(|cx| Pin::borrow(&mut this).poll_flush(cx))?;
         Ok(())
     }
 }
 
-pub fn close<'a, W: Write + 'a>(
+pub fn close<'a, W: Write>(
     mut this: Pin<'a, W>,
-) -> impl StableFuture<Item = (), Error = W::Error> + Captures<'a> {
+) -> impl StableFuture<Item = (), Error = W::Error> + 'a {
     async_block_pinned! {
         await_poll!(|cx| Pin::borrow(&mut this).poll_close(cx))?;
         Ok(())

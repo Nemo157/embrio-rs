@@ -7,6 +7,7 @@
 #![feature(pin)]
 #![feature(underscore_lifetimes)]
 #![feature(specialization)]
+#![allow(unknown_lints)]
 
 extern crate cortex_m;
 extern crate nrf51;

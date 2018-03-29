@@ -13,7 +13,10 @@ impl Executor {
     pub fn new(peripherals: cortex_m::Peripherals) -> Executor {
         // enable WFE
         unsafe {
-            peripherals.SCB.scr.modify(|x| (x | 0b00010000));
+            peripherals
+                .SCB
+                .scr
+                .modify(|x| (x | 0b0001_0000));
         }
 
         Executor(peripherals)
