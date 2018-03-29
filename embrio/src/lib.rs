@@ -9,6 +9,15 @@ extern crate embrio_executor;
 #[cfg(feature = "nrf51")]
 extern crate embrio_nrf51;
 
+pub mod si {
+    pub use embrio_core::si::{Dimension, Quantity, Time, Unit, Units};
+
+    pub mod time {
+        pub use embrio_core::si::time::{description, microsecond, Conversion,
+                                        Time, Unit};
+    }
+}
+
 pub mod gpio {
     pub use embrio_core::gpio::Output;
 }

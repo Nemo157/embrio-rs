@@ -1,8 +1,7 @@
-use uom::si::time::microsecond;
 use futures::{task, Async, Future, FutureExt, Poll, Stream, StreamExt};
 use nrf51::TIMER0;
 
-use units::Time;
+use embrio::si::{Time, time::microsecond};
 
 pub struct Timer(TIMER0);
 

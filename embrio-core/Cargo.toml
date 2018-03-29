@@ -9,3 +9,13 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]
+
+[dependencies.uom]
+git = "https://github.com/iliekturtles/uom"
+branch = "dev-num-std"
+default-features = false
+features = ["u32"]
+
+[features]
+u32 = []
+default = ["u32"]
