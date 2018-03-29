@@ -5,6 +5,7 @@ image: rust
 
 variables:
   NIGHTLY: "2018-03-28"
+  CLIPPY: "0.0.190"
   RUSTUP_HOME: $CI_PROJECT_DIR/rustup
   CARGO_HOME: $CI_PROJECT_DIR/cargo
 
@@ -28,6 +29,15 @@ deny-warnings:
     do
       cargo rustc --manifest-path $manifest --all-features -- -D warnings;
     done
+
+clippy:
+  stage: check
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths: [rustup, cargo, target]
+  script:
+  - cargo install --force clippy --version $CLIPPY
+  - cargo clippy --all -- -D warnings
 
 check-style:
   stage: check
