@@ -1,0 +1,48 @@
+stages: [build, check, docs]
+
+image: rust
+
+
+variables:
+  NIGHTLY: "2018-03-28"
+  RUSTUP_HOME: $CI_PROJECT_DIR/rustup
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+before_script:
+- rustup default nightly-$NIGHTLY
+
+cache:
+  key: global
+  paths: [rustup, cargo, target]
+
+build:
+  stage: build
+  script:
+  - cargo build
+  - cargo build --manifest-path embrio/Cargo.toml --all-features
+
+deny-warnings:
+  stage: check
+  script:
+  - for manifest in embrio*/Cargo.toml;
+    do
+      cargo rustc --manifest-path $manifest --all-features -- -D warnings;
+    done
+
+check-style:
+  stage: check
+  script:
+  - rustup component add rustfmt-preview
+  - cargo fmt --all -- --write-mode=diff
+
+pages:
+  stage: docs
+  script:
+  - cargo doc --manifest-path embrio/Cargo.toml --all-features
+  - mv target/doc public
+  - echo '<meta http-equiv="refresh" content="0; url=embrio">' > public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
