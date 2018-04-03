@@ -13,6 +13,26 @@ pub trait Read {
     ) -> Poll<usize, Self::Error>;
 }
 
+impl<'a, R> Read for Pin<'a, R>
+where
+    R: Read + 'a,
+{
+    type Error = <R as Read>::Error;
+
+    fn poll_read(
+        mut self: Pin<Self>,
+        cx: &mut task::Context,
+        buf: &mut [u8],
+    ) -> Poll<usize, Self::Error> {
+        // TODO: replace `unsafe { Pin::get_mut(&mut self) }` with `&mut *self` once `Pin: Unpin`
+        <R as Read>::poll_read(
+            Pin::borrow(unsafe { Pin::get_mut(&mut self) }),
+            cx,
+            buf,
+        )
+    }
+}
+
 impl<'a> Read for &'a [u8] {
     type Error = !;
 
