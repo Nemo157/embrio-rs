@@ -14,7 +14,7 @@ mod embrio {
     pub use self::embrio_core::*;
 }
 
-extern crate futures_await as futures;
+extern crate futures;
 
 pub mod future;
 pub mod io;
