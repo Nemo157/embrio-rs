@@ -2,12 +2,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(core_intrinsics)]
 #![feature(duration_extras)]
+#![feature(generators)]
 #![feature(in_band_lifetimes)]
 #![feature(never_type)]
 #![feature(pin)]
-#![feature(underscore_lifetimes)]
 #![feature(proc_macro)]
-#![feature(generators)]
+#![feature(underscore_lifetimes)]
 
 mod embrio {
     extern crate embrio_core;
@@ -16,4 +16,5 @@ mod embrio {
 
 extern crate futures_await as futures;
 
+pub mod future;
 pub mod io;

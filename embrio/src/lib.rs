@@ -27,6 +27,10 @@ pub mod io {
     pub use embrio_util::io::{close, flush, read_exact, write_all, Error};
 }
 
+pub mod future {
+    pub use embrio_util::future::join;
+}
+
 #[cfg(feature = "executor")]
 pub mod executor {
     pub use embrio_executor::Executor;
