@@ -16,7 +16,4 @@ mod embrio {
 
 extern crate futures_await as futures;
 
-#[macro_use]
-mod macros;
-
 pub mod io;

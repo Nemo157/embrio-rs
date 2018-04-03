@@ -1,6 +1,7 @@
 use core::mem::Pin;
 
-use futures::prelude::async_block_pinned;
+use futures::future::poll_fn;
+use futures::prelude::{async_block_pinned, await};
 use futures::stable::StableFuture;
 
 use embrio::io::{Read, Write};
@@ -30,9 +31,9 @@ pub fn read_exact<'a, 'b: 'a, R: Read + 'a>(
     async_block_pinned! {
         let mut position = 0;
         while position < buf.len() {
-            let amount = await_poll!(|cx| {
+            let amount = await!(poll_fn(|cx| {
                 Pin::borrow(&mut this).poll_read(cx, &mut buf[position..])
-            })?;
+            }))?;
             position += amount;
             if amount == 0 {
                 Err(Error::UnexpectedEof)?;
@@ -51,9 +52,9 @@ pub fn write_all<'a, 'b: 'a, W: Write + 'a>(
     async_block_pinned! {
         let mut position = 0;
         while position < buf.len() {
-            let amount = await_poll!(|cx| {
+            let amount = await!(poll_fn(|cx| {
                 Pin::borrow(&mut this).poll_write(cx, &buf[position..])
-            })?;
+            }))?;
             position += amount;
             if amount == 0 {
                 Err(Error::WriteZero)?;
@@ -67,7 +68,7 @@ pub fn flush<'a, W: Write>(
     mut this: Pin<'a, W>,
 ) -> impl StableFuture<Item = (), Error = W::Error> + 'a {
     async_block_pinned! {
-        await_poll!(|cx| Pin::borrow(&mut this).poll_flush(cx))?;
+        await!(poll_fn(|cx| Pin::borrow(&mut this).poll_flush(cx)))?;
         Ok(())
     }
 }
@@ -76,7 +77,7 @@ pub fn close<'a, W: Write>(
     mut this: Pin<'a, W>,
 ) -> impl StableFuture<Item = (), Error = W::Error> + 'a {
     async_block_pinned! {
-        await_poll!(|cx| Pin::borrow(&mut this).poll_close(cx))?;
+        await!(poll_fn(|cx| Pin::borrow(&mut this).poll_close(cx)))?;
         Ok(())
     }
 }
