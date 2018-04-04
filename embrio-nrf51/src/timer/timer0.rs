@@ -3,12 +3,10 @@ use nrf51::TIMER0;
 
 use embrio::si::{Time, time::microsecond};
 
-pub struct Timer(TIMER0);
+use super::{Timer, Interval};
 
-struct Interval<'a>(&'a mut TIMER0);
-
-impl Timer {
-    pub fn new(timer: TIMER0) -> Timer {
+impl Timer<TIMER0> {
+    pub fn new(timer: TIMER0) -> Timer<TIMER0> {
         // 32bits @ 1MHz == max delay of ~1 hour 11 minutes
         timer.bitmode.write(|w| w.bitmode()._32bit());
         timer
@@ -22,7 +20,7 @@ impl Timer {
     }
 }
 
-impl Timer {
+impl Timer<TIMER0> {
     pub fn timeout(
         &mut self,
         duration: Time,
@@ -52,7 +50,7 @@ impl Timer {
     }
 }
 
-impl<'a> Stream for Interval<'a> {
+impl<'a> Stream for Interval<'a, TIMER0> {
     type Item = ();
     type Error = !;
 
