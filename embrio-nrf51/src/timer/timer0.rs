@@ -7,7 +7,7 @@ use embrio::si::{Time, time::microsecond};
 use super::{Interval, Timeout, Timer};
 
 impl Timer<TIMER0> {
-    pub fn new(timer: TIMER0) -> Timer<TIMER0> {
+    pub fn timer0(timer: TIMER0) -> Timer<TIMER0> {
         // 32bits @ 1MHz == max delay of ~1 hour 11 minutes
         timer.bitmode.write(|w| w.bitmode()._32bit());
         timer
