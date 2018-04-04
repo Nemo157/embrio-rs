@@ -21,12 +21,12 @@ impl Timer<TIMER0> {
     }
 }
 
-impl embrio::timer::Timer for Timer<TIMER0> {
+impl<'a> embrio::timer::Timer for &'a mut Timer<TIMER0> {
     type Error = !;
 
-    type Timeout = Timeout<TIMER0>;
+    type Timeout = Timeout<'a, TIMER0>;
 
-    type Interval = Interval<TIMER0>;
+    type Interval = Interval<'a, TIMER0>;
 
     fn timeout(self, duration: Time) -> Self::Timeout {
         let us = duration.get(microsecond);
@@ -40,7 +40,7 @@ impl embrio::timer::Timer for Timer<TIMER0> {
             .tasks_start
             .write(|w| unsafe { w.bits(1) });
 
-        Timeout(Some(self.0))
+        Timeout(Some(self))
     }
 
     fn interval(self, duration: Time) -> Self::Interval {
@@ -55,12 +55,12 @@ impl embrio::timer::Timer for Timer<TIMER0> {
             .tasks_start
             .write(|w| unsafe { w.bits(1) });
 
-        Interval(self.0)
+        Interval(self)
     }
 }
 
-impl Future for Timeout<TIMER0> {
-    type Item = Timer<TIMER0>;
+impl<'a> Future for Timeout<'a, TIMER0> {
+    type Item = &'a mut Timer<TIMER0>;
     type Error = !;
 
     fn poll(
@@ -70,18 +70,20 @@ impl Future for Timeout<TIMER0> {
         self.0
             .as_mut()
             .unwrap()
+            .0
             .intenclr
             .write(|w| w.compare0().clear());
-        if self.0.as_mut().unwrap().events_compare[0]
+        if self.0.as_mut().unwrap().0.events_compare[0]
             .read()
             .bits() == 1
         {
-            self.0.as_mut().unwrap().events_compare[0].reset();
-            Ok(Async::Ready(Timer(self.0.take().unwrap())))
+            self.0.as_mut().unwrap().0.events_compare[0].reset();
+            Ok(Async::Ready(self.0.take().unwrap()))
         } else {
             self.0
                 .as_mut()
                 .unwrap()
+                .0
                 .intenset
                 .write(|w| w.compare0().set());
             Ok(Async::Pending)
@@ -89,7 +91,7 @@ impl Future for Timeout<TIMER0> {
     }
 }
 
-impl Stream for Interval<TIMER0> {
+impl<'a> Stream for Interval<'a, TIMER0> {
     type Item = ();
     type Error = !;
 
@@ -97,12 +99,18 @@ impl Stream for Interval<TIMER0> {
         &mut self,
         _cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>, Self::Error> {
-        self.0.intenclr.write(|w| w.compare0().clear());
-        if self.0.events_compare[0].read().bits() == 1 {
-            self.0.events_compare[0].reset();
+        (self.0)
+            .0
+            .intenclr
+            .write(|w| w.compare0().clear());
+        if (self.0).0.events_compare[0].read().bits() == 1 {
+            (self.0).0.events_compare[0].reset();
             Ok(Async::Ready(Some(())))
         } else {
-            self.0.intenset.write(|w| w.compare0().set());
+            (self.0)
+                .0
+                .intenset
+                .write(|w| w.compare0().set());
             Ok(Async::Pending)
         }
     }
