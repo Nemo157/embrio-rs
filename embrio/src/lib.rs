@@ -22,6 +22,10 @@ pub mod gpio {
     pub use embrio_core::gpio::Output;
 }
 
+pub mod timer {
+    pub use embrio_core::timer::Timer;
+}
+
 pub mod io {
     pub use embrio_core::io::{sink, Cursor, Read, Write};
     pub use embrio_util::io::{close, flush, read_exact, write_all, Error};
