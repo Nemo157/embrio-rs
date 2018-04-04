@@ -7,6 +7,10 @@ macro_rules! pin_field {
     };
 }
 
+mod first;
 mod join;
+mod traits;
 
+pub use self::first::first;
 pub use self::join::join;
+pub use self::traits::StableInfiniteStream;
