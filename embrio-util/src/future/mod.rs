@@ -9,8 +9,10 @@ macro_rules! pin_field {
 
 mod first;
 mod join;
+mod select;
 mod traits;
 
 pub use self::first::first;
 pub use self::join::join;
+pub use self::select::select;
 pub use self::traits::StableInfiniteStream;
