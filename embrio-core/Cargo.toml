@@ -5,7 +5,7 @@ authors = ["Wim Looman <wim.looman@kiwi.ki>"]
 
 [dependencies]
 
-[dependencies.futures-core]
+[dependencies.futures]
 git = "https://github.com/Nemo157/futures-rs"
 default-features = false
 features = ["nightly"]

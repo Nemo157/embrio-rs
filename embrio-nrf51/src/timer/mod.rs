@@ -3,4 +3,5 @@ mod timer1;
 
 pub struct Timer<T>(T);
 
-struct Interval<'a, T: 'a>(&'a mut T);
+pub struct Timeout<T>(Option<T>);
+pub struct Interval<T>(T);

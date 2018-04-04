@@ -6,10 +6,7 @@
 #[macro_use]
 extern crate uom;
 
-mod futures {
-    extern crate futures_core;
-    pub use self::futures_core::*;
-}
+extern crate futures;
 
 pub mod si {
     // Until https://github.com/iliekturtles/uom/issues/60 is fixed we can't
@@ -43,3 +40,4 @@ pub mod si {
 
 pub mod gpio;
 pub mod io;
+pub mod timer;
