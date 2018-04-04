@@ -32,7 +32,7 @@ pub mod io {
 }
 
 pub mod future {
-    pub use embrio_util::future::join;
+    pub use embrio_util::future::{first, join, StableInfiniteStream};
 }
 
 #[cfg(feature = "executor")]
