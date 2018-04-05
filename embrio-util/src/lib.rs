@@ -9,12 +9,13 @@
 #![feature(proc_macro)]
 #![feature(underscore_lifetimes)]
 
-mod embrio {
+pub mod embrio {
     extern crate embrio_core;
     pub use self::embrio_core::*;
 }
 
-extern crate futures;
+pub extern crate futures;
 
+pub mod fmt;
 pub mod future;
 pub mod io;

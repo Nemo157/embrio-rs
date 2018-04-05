@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(use_extern_macros)]
 
 extern crate embrio_core;
 extern crate embrio_util;
@@ -16,6 +17,10 @@ pub mod si {
         pub use embrio_core::si::time::{description, microsecond, Conversion,
                                         Time, Unit};
     }
+}
+
+pub mod fmt {
+    pub use embrio_util::{await_write, await_writeln};
 }
 
 pub mod gpio {
