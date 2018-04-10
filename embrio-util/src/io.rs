@@ -6,6 +6,7 @@ use futures::stable::StableFuture;
 
 use embrio::io::{Read, Write};
 
+#[derive(Debug)]
 pub enum Error<T> {
     UnexpectedEof,
     WriteZero,

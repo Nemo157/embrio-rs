@@ -37,7 +37,7 @@ pub mod io {
 }
 
 pub mod future {
-    pub use embrio_util::future::{filter, first, join, select,
+    pub use embrio_util::future::{filter, filter_map, first, join, select,
                                   StableInfiniteStream};
 }
 

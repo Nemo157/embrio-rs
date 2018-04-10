@@ -1,10 +1,11 @@
 use core::cmp;
+use core::fmt::Debug;
 use core::mem::Pin;
 
 use futures::{task, Async, Poll};
 
 pub trait Read {
-    type Error;
+    type Error: Debug;
 
     fn poll_read(
         self: Pin<Self>,

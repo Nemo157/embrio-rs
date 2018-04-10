@@ -1,6 +1,6 @@
 use core::mem;
 
-use embrio;
+use embrio::{self, executor::EmbrioContext};
 use futures::{task, Async, Poll};
 use nrf51::UART0;
 
@@ -79,9 +79,9 @@ impl<'a> embrio::io::Read for Rx<'a> {
             return Ok(Async::Ready(0));
         }
 
-        self.uart.intenclr.write(|w| w.rxdrdy().clear());
         if self.uart.events_rxdrdy.read().bits() == 1 {
             self.uart.events_rxdrdy.reset();
+            self.uart.intenclr.write(|w| w.rxdrdy().clear());
             buf[0] = self.uart.rxd.read().bits() as u8;
             Ok(Async::Ready(1))
         } else {
@@ -94,37 +94,30 @@ impl<'a> embrio::io::Read for Rx<'a> {
 impl<'a> embrio::io::Write for Tx<'a> {
     type Error = !;
 
+    #[allow(unreachable_code)]
     fn poll_write(
         self: mem::Pin<Self>,
-        _cx: &mut task::Context,
+        cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<usize, Self::Error> {
         if buf.is_empty() {
             return Ok(Async::Ready(0));
         }
 
-        self.uart.intenclr.write(|w| w.txdrdy().clear());
-        if self.uart.events_txdrdy.read().bits() == 1 {
-            self.uart.events_txdrdy.reset();
-            self.uart
-                .txd
-                .write(|w| unsafe { w.bits(buf[0].into()) });
-            Ok(Async::Ready(1))
-        } else {
-            self.uart.intenset.write(|w| w.txdrdy().set());
-            Ok(Async::Pending)
-        }
+        try_ready!(cx.waker().check_and_clear(2, 7));
+        self.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
+        Ok(Async::Ready(1))
     }
 
     fn poll_flush(
         self: mem::Pin<Self>,
         _cx: &mut task::Context,
     ) -> Poll<(), Self::Error> {
-        self.uart.intenclr.write(|w| w.txdrdy().clear());
+        self.uart.intenset.write(|w| w.txdrdy().set());
         if self.uart.events_txdrdy.read().bits() == 1 {
+            self.uart.intenclr.write(|w| w.txdrdy().clear());
             Ok(Async::Ready(()))
         } else {
-            self.uart.intenset.write(|w| w.txdrdy().set());
             Ok(Async::Pending)
         }
     }

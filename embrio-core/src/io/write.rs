@@ -1,9 +1,10 @@
 use core::{cmp, mem, mem::Pin};
+use core::fmt::Debug;
 
 use futures::{task, Async, Poll};
 
 pub trait Write {
-    type Error;
+    type Error: Debug;
 
     fn poll_write(
         self: Pin<Self>,

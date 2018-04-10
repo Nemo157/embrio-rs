@@ -1,11 +1,10 @@
 use core::mem::Pin;
-use core::u32;
 
 use cortex_m;
-use futures::{Async, stable::StableFuture, task::{Context, LocalMap, Waker}};
+use futures::{Async, stable::StableFuture, task::{Context, LocalMap}};
 
 use pin::pinned;
-use waker::WFEWaker;
+use EmbrioWaker;
 
 pub struct Executor(cortex_m::Peripherals);
 
@@ -26,21 +25,18 @@ impl Executor {
         self,
         future: F,
     ) -> Result<F::Item, F::Error> {
-        let (mut map, waker) = (LocalMap::new(), Waker::from(WFEWaker));
+        let (mut map, waker) = (LocalMap::new(), EmbrioWaker::waker());
         let mut context = Context::without_spawn(&mut map, &waker);
 
         pinned(future, |mut future| {
             loop {
                 let future = Pin::borrow(&mut future);
-                if let Async::Ready(val) = future.poll(&mut context)? {
-                    return Ok(val);
+                match future.poll(&mut context) {
+                    Ok(Async::Ready(val)) => return Ok(val),
+                    Ok(Async::Pending) => (),
+                    Err(e) => return Err(e),
                 }
-                // Clear all pending interrupts
-                // TODO: armv7-m allows for a device specific number of interrupts
-                unsafe {
-                    self.0.NVIC.icpr[0].write(u32::MAX);
-                }
-                cortex_m::asm::wfe();
+                EmbrioWaker::wait();
             }
         })
     }

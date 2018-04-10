@@ -12,15 +12,18 @@
 extern crate cortex_m;
 extern crate nrf51;
 
+#[macro_use]
+extern crate futures_core;
+
 mod embrio {
     extern crate embrio_core;
+    pub extern crate embrio_executor as executor;
     pub use self::embrio_core::*;
 }
 
 mod futures {
-    extern crate futures_core;
     extern crate futures_util;
-    pub use self::futures_core::*;
+    pub use futures_core::*;
     pub use self::futures_util::*;
 }
 

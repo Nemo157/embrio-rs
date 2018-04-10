@@ -4,7 +4,7 @@ macro_rules! await_write {
         let mut buffer = $buffer;
         let position = {
             let mut cursor = $crate::embrio::io::Cursor::new(&mut buffer[..]);
-            write!(cursor, $($arg)*)?;
+            write!(cursor, $($arg)*).unwrap();
             cursor.position()
         };
         $crate::futures::prelude::await!(
@@ -20,7 +20,7 @@ macro_rules! await_writeln {
         let mut buffer = $buffer;
         let position = {
             let mut cursor = $crate::embrio::io::Cursor::new(&mut buffer[..]);
-            writeln!(cursor, $($arg)*)?;
+            writeln!(cursor, $($arg)*).unwrap();
             cursor.position()
         };
         $crate::futures::prelude::await!(

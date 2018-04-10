@@ -8,6 +8,7 @@
 #![feature(pin)]
 #![feature(proc_macro)]
 #![feature(underscore_lifetimes)]
+#![feature(macro_at_most_once_rep)]
 
 pub mod embrio {
     extern crate embrio_core;
