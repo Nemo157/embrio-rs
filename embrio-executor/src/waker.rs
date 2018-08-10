@@ -1,13 +1,19 @@
 // TODO: Make this much much _MUCH_ safer to use
 
-use core::ptr;
-use core::cell::UnsafeCell;
-
-use futures::{Async, Poll};
-use futures::task::{UnsafeWake, Waker};
-use cortex_m;
-use cortex_m::interrupt::{self, Mutex};
-use cortex_m::peripheral::NVIC;
+use core::{
+    cell::UnsafeCell,
+    ptr::{self, NonNull},
+};
+use cortex_m::{
+    self,
+    interrupt::{self, Mutex},
+    peripheral::NVIC,
+};
+use futures_core::{
+    task::{LocalWaker, UnsafeWake, Waker},
+    Poll,
+};
+use futures_util::ready;
 
 pub struct EmbrioWaker {
     _reserved: u32,
@@ -26,16 +32,16 @@ static EMBRIO_WAKER_INSTANCE: Mutex<EmbrioWakerInstance> = {
 };
 
 impl EmbrioWaker {
-    pub(crate) fn waker() -> Waker {
+    pub(crate) fn local_waker() -> LocalWaker {
         unsafe {
-            Waker::new(EmbrioWaker::instance() as *mut UnsafeWake)
+            LocalWaker::new(NonNull::new_unchecked(
+                EmbrioWaker::instance() as *mut UnsafeWake
+            ))
         }
     }
 
     pub(crate) fn instance() -> *mut EmbrioWaker {
-        interrupt::free(|cs| {
-            EMBRIO_WAKER_INSTANCE.borrow(cs).instance.get()
-        })
+        interrupt::free(|cs| EMBRIO_WAKER_INSTANCE.borrow(cs).instance.get())
     }
 
     // How this works.
@@ -88,7 +94,7 @@ impl EmbrioWaker {
     /// Will check whether an event has occurred, and if not automatically
     /// register interest in this event so the current task will be woken when
     /// it occurs.
-    pub fn check(&mut self, peripheral: usize, event: usize) -> Poll<(), !> {
+    pub fn check(&mut self, peripheral: usize, event: usize) -> Poll<()> {
         assert!(peripheral < 32);
         assert!(event < 32);
 
@@ -105,17 +111,21 @@ impl EmbrioWaker {
                 ptr::write_volatile(intenclr_register as *mut u32, 1 << event);
                 // clear the interrupt pending flag
                 nvic.icpr[0].write(1 << peripheral);
-                Ok(Async::Ready(()))
+                Poll::Ready(())
             } else {
                 // enable generating interrupt based on this event
                 ptr::write_volatile(intenset_register as *mut u32, 1 << event);
-                Ok(Async::Pending)
+                Poll::Pending
             }
         }
     }
 
     #[allow(unreachable_code)]
-    pub fn check_and_clear(&mut self, peripheral: usize, event: usize) -> Poll<(), !> {
+    pub fn check_and_clear(
+        &mut self,
+        peripheral: usize,
+        event: usize,
+    ) -> Poll<()> {
         assert!(peripheral < 32);
         assert!(event < 32);
 
@@ -123,9 +133,9 @@ impl EmbrioWaker {
         let event_offset = 0x100 + (event * 4);
         let event_register = peripheral_base + event_offset;
 
-        try_ready!(self.check(peripheral, event));
+        ready!(self.check(peripheral, event));
         unsafe { ptr::write_volatile(event_register as *mut u32, 0) };
-        Ok(Async::Ready(()))
+        Poll::Ready(())
     }
 
     pub(crate) fn wait() {
@@ -137,7 +147,10 @@ impl SendEventWaker {
     fn waker() -> Waker {
         static INSTANCE: SendEventWaker = SendEventWaker;
         unsafe {
-            Waker::new(&INSTANCE as *const SendEventWaker as *mut SendEventWaker as *mut UnsafeWake)
+            Waker::new(NonNull::new_unchecked(
+                &INSTANCE as *const SendEventWaker as *mut SendEventWaker
+                    as *mut UnsafeWake,
+            ))
         }
     }
 }

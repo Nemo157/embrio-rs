@@ -1,13 +1,16 @@
+cargo-features = ["edition"]
+
 [package]
 name = "embrio-util"
 version = "0.1.0"
-authors = ["Wim Looman <wim.looman@kiwi.ki>"]
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
 
 [dependencies]
 embrio-core = { path = "../embrio-core" }
 
-[dependencies.futures]
-git = "https://github.com/Nemo157/futures-rs"
+[dependencies.futures-preview]
+git = "https://github.com/rust-lang-nursery/futures-rs"
 default-features = false
 features = ["nightly"]
 

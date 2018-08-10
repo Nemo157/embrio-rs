@@ -1,5 +1,3 @@
-#![allow(inline_always)]
-
 use nrf51::gpio::pin_cnf;
 
 pub trait InputMode: Sized {

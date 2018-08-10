@@ -1,11 +1,9 @@
+use super::mode::{
+    Disabled, Floating, Input, OpenDrain, Output, OutputMode, PinMode,
+    PullDown, PullUp, PushPull, Unconfigured,
+};
+use crate::zst_ref::ZstRef;
 use nrf51::GPIO;
-
-use embrio;
-
-use zst_ref::ZstRef;
-
-use super::mode::{Disabled, Floating, Input, OpenDrain, Output, OutputMode,
-                  PinMode, PullDown, PullUp, PushPull, Unconfigured};
 
 #[derive(Debug)]
 pub struct Pin<'a, Mode> {
@@ -39,11 +37,7 @@ impl<'a, Mode, NewMode: PinMode> Reconfigure<'a, NewMode> for Pin<'a, Mode> {
             w
         });
         let mode = mode.expect("write is guaranteed to set this");
-        Pin {
-            gpio,
-            pin,
-            mode,
-        }
+        Pin { gpio, pin, mode }
     }
 }
 
@@ -131,20 +125,16 @@ impl<'a, Mode> Pin<'a, Output<Mode>> {
     }
 }
 
-impl<'a, Mode: OutputMode> embrio::gpio::Output for Pin<'a, Output<Mode>> {
+impl<'a, Mode: OutputMode> embrio_core::gpio::Output for Pin<'a, Output<Mode>> {
     fn state(&self) -> bool {
         (self.gpio.out.read().bits() & (1 << self.pin)) == (1 << self.pin)
     }
 
     fn set_state(&self, state: bool) {
         if state {
-            self.gpio
-                .outset
-                .write(|w| unsafe { w.bits(1 << self.pin) });
+            self.gpio.outset.write(|w| unsafe { w.bits(1 << self.pin) });
         } else {
-            self.gpio
-                .outclr
-                .write(|w| unsafe { w.bits(1 << self.pin) });
+            self.gpio.outclr.write(|w| unsafe { w.bits(1 << self.pin) });
         }
     }
 }

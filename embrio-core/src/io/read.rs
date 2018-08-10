@@ -1,36 +1,31 @@
 use core::cmp;
 use core::fmt::Debug;
-use core::mem::Pin;
+use core::mem::PinMut;
 
-use futures::{task, Async, Poll};
+use futures_core::{task, Poll};
 
 pub trait Read {
     type Error: Debug;
 
     fn poll_read(
-        self: Pin<Self>,
+        self: PinMut<Self>,
         cx: &mut task::Context,
         buf: &mut [u8],
-    ) -> Poll<usize, Self::Error>;
+    ) -> Poll<Result<usize, Self::Error>>;
 }
 
-impl<'a, R> Read for Pin<'a, R>
+impl<'a, R> Read for PinMut<'a, R>
 where
     R: Read + 'a,
 {
     type Error = <R as Read>::Error;
 
     fn poll_read(
-        mut self: Pin<Self>,
+        mut self: PinMut<Self>,
         cx: &mut task::Context,
         buf: &mut [u8],
-    ) -> Poll<usize, Self::Error> {
-        // TODO: replace `unsafe { Pin::get_mut(&mut self) }` with `&mut *self` once `Pin: Unpin`
-        <R as Read>::poll_read(
-            Pin::borrow(unsafe { Pin::get_mut(&mut self) }),
-            cx,
-            buf,
-        )
+    ) -> Poll<Result<usize, Self::Error>> {
+        <R as Read>::poll_read(PinMut::reborrow(&mut *self), cx, buf)
     }
 }
 
@@ -38,14 +33,14 @@ impl<'a> Read for &'a [u8] {
     type Error = !;
 
     fn poll_read(
-        mut self: Pin<Self>,
+        mut self: PinMut<Self>,
         _cx: &mut task::Context,
         buf: &mut [u8],
-    ) -> Poll<usize, Self::Error> {
+    ) -> Poll<Result<usize, Self::Error>> {
         let len = cmp::min(self.len(), buf.len());
         let (head, tail) = self.split_at(len);
         buf[..len].copy_from_slice(head);
         *self = tail;
-        Ok(Async::Ready(len))
+        Poll::Ready(Ok(len))
     }
 }

@@ -1,17 +1,20 @@
+cargo-features = ["edition"]
+
 [package]
 name = "embrio-executor"
 version = "0.1.0"
-authors = ["Wim Looman <wim.looman@kiwi.ki>"]
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
 
 [dependencies]
 cortex-m = "0.4.0"
+pin-utils = { version = "0.1.0-alpha.1", default-features = false }
 
-[dependencies.futures-core]
-git = "https://github.com/Nemo157/futures-rs"
+[dependencies.futures-core-preview]
+git = "https://github.com/rust-lang-nursery/futures-rs"
 default-features = false
-features = ["nightly"]
 
-[dependencies.futures-stable]
-git = "https://github.com/Nemo157/futures-rs"
+[dependencies.futures-util-preview]
+git = "https://github.com/rust-lang-nursery/futures-rs"
 default-features = false
 features = ["nightly"]

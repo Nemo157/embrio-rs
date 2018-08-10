@@ -1,24 +1,19 @@
 #![no_std]
-#![feature(never_type)]
-#![feature(pin)]
-#![feature(const_fn)]
-#![feature(arbitrary_self_types)]
+#![feature(
+    arbitrary_self_types,
+    async_await,
+    await_macro,
+    const_fn,
+    futures_api,
+    never_type,
+    pin,
+)]
 
-extern crate cortex_m;
-
-#[macro_use]
-extern crate futures_core;
-
-mod futures {
-    pub extern crate futures_stable as stable;
-    pub use futures_core::*;
-}
-
-mod executor;
-mod pin;
-mod waker;
 mod context;
+mod executor;
+mod spawn;
+mod waker;
 
-pub use executor::Executor;
-pub use waker::EmbrioWaker;
-pub use context::EmbrioContext;
+pub use self::{
+    context::EmbrioContext, executor::Executor, waker::EmbrioWaker,
+};

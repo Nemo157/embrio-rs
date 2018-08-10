@@ -1,11 +1,18 @@
 use core::mem;
 
-use embrio::{self, executor::EmbrioContext};
-use futures::{task, Async, Poll};
+use embrio_core::io;
+use embrio_executor::EmbrioContext;
+use futures_core::{task, Poll};
+use futures_util::ready;
 use nrf51::UART0;
 
-use gpio::{Pin, mode::{Floating, Input, Output, PushPull}};
-use zst_ref::ZstRef;
+use crate::{
+    gpio::{
+        mode::{Floating, Input, Output, PushPull},
+        Pin,
+    },
+    zst_ref::ZstRef,
+};
 
 pub use nrf51::uart0::baudrate::BAUDRATEW;
 
@@ -40,14 +47,11 @@ impl<'a> Uart<'a> {
             .write(|w| unsafe { w.bits(txpin.get_id() as u32) });
         uart.pselrxd
             .write(|w| unsafe { w.bits(rxpin.get_id() as u32) });
-        uart.baudrate
-            .write(|w| w.baudrate().variant(speed));
+        uart.baudrate.write(|w| w.baudrate().variant(speed));
         uart.enable.write(|w| w.enable().enabled());
 
-        uart.tasks_starttx
-            .write(|w| unsafe { w.bits(1) });
-        uart.tasks_startrx
-            .write(|w| unsafe { w.bits(1) });
+        uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
+        uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
         let uart = ZstRef::new(uart);
         Uart {
@@ -67,68 +71,66 @@ impl<'a> Uart<'a> {
     }
 }
 
-impl<'a> embrio::io::Read for Rx<'a> {
+impl<'a> io::Read for Rx<'a> {
     type Error = !;
 
     fn poll_read(
-        self: mem::Pin<Self>,
+        self: mem::PinMut<Self>,
         _cx: &mut task::Context,
         buf: &mut [u8],
-    ) -> Poll<usize, Self::Error> {
+    ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
-            return Ok(Async::Ready(0));
+            return Poll::Ready(Ok(0));
         }
 
         if self.uart.events_rxdrdy.read().bits() == 1 {
             self.uart.events_rxdrdy.reset();
             self.uart.intenclr.write(|w| w.rxdrdy().clear());
             buf[0] = self.uart.rxd.read().bits() as u8;
-            Ok(Async::Ready(1))
+            Poll::Ready(Ok(1))
         } else {
             self.uart.intenset.write(|w| w.rxdrdy().set());
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 }
 
-impl<'a> embrio::io::Write for Tx<'a> {
+impl<'a> io::Write for Tx<'a> {
     type Error = !;
 
     #[allow(unreachable_code)]
     fn poll_write(
-        self: mem::Pin<Self>,
+        self: mem::PinMut<Self>,
         cx: &mut task::Context,
         buf: &[u8],
-    ) -> Poll<usize, Self::Error> {
+    ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
-            return Ok(Async::Ready(0));
+            return Poll::Ready(Ok(0));
         }
 
-        try_ready!(cx.waker().check_and_clear(2, 7));
+        ready!(cx.waker().check_and_clear(2, 7));
         self.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
-        Ok(Async::Ready(1))
+        Poll::Ready(Ok(1))
     }
 
     fn poll_flush(
-        self: mem::Pin<Self>,
+        self: mem::PinMut<Self>,
         _cx: &mut task::Context,
-    ) -> Poll<(), Self::Error> {
+    ) -> Poll<Result<(), Self::Error>> {
         self.uart.intenset.write(|w| w.txdrdy().set());
         if self.uart.events_txdrdy.read().bits() == 1 {
             self.uart.intenclr.write(|w| w.txdrdy().clear());
-            Ok(Async::Ready(()))
+            Poll::Ready(Ok(()))
         } else {
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 
     fn poll_close(
-        self: mem::Pin<Self>,
+        self: mem::PinMut<Self>,
         _cx: &mut task::Context,
-    ) -> Poll<(), Self::Error> {
-        self.uart
-            .tasks_stoptx
-            .write(|w| unsafe { w.bits(1) });
-        Ok(Async::Ready(()))
+    ) -> Poll<Result<(), Self::Error>> {
+        self.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+        Poll::Ready(Ok(()))
     }
 }

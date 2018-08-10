@@ -1,17 +1,16 @@
-use futures::stable::{StableFuture, StableStream};
-
-use si::Time;
+use core::time::Duration;
+use futures_core::{future::Future, stream::Stream};
 
 pub trait Timer: Sized {
     type Error;
 
-    type Timeout: StableFuture<Item = Self, Error = Self::Error>;
+    type Timeout: Future<Output = Result<Self, Self::Error>>;
 
-    type Interval: StableStream<Item = (), Error = Self::Error>;
+    type Interval: Stream<Item = Result<(), Self::Error>>;
 
-    fn timeout(self, duration: Time) -> Self::Timeout;
+    fn timeout(self, duration: Duration) -> Self::Timeout;
 
-    fn interval(self, duration: Time) -> Self::Interval;
+    fn interval(self, duration: Duration) -> Self::Interval;
 }
 
 /* TODO: Use this

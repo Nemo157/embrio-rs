@@ -1,7 +1,10 @@
+cargo-features = ["edition"]
+
 [package]
 name = "embrio"
 version = "0.1.0"
-authors = ["Wim Looman <wim.looman@kiwi.ki>"]
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
 
 [dependencies]
 embrio-core = { path = "../embrio-core" }

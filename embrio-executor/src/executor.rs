@@ -1,10 +1,7 @@
-use core::mem::Pin;
-
 use cortex_m;
-use futures::{Async, stable::StableFuture, task::{Context, LocalMap}};
-
-use pin::pinned;
-use EmbrioWaker;
+use crate::{spawn::NoSpawn, EmbrioWaker};
+use futures_core::{task::Context, Future, Poll};
+use pin_utils::pin_mut;
 
 pub struct Executor(cortex_m::Peripherals);
 
@@ -12,32 +9,24 @@ impl Executor {
     pub fn new(peripherals: cortex_m::Peripherals) -> Executor {
         // enable WFE
         unsafe {
-            peripherals
-                .SCB
-                .scr
-                .modify(|x| (x | 0b0001_0000));
+            peripherals.SCB.scr.modify(|x| (x | 0b0001_0000));
         }
 
         Executor(peripherals)
     }
 
-    pub fn block_on<F: StableFuture>(
-        self,
-        future: F,
-    ) -> Result<F::Item, F::Error> {
-        let (mut map, waker) = (LocalMap::new(), EmbrioWaker::waker());
-        let mut context = Context::without_spawn(&mut map, &waker);
+    pub fn block_on<F: Future>(self, future: F) -> F::Output {
+        pin_mut!(future);
 
-        pinned(future, |mut future| {
-            loop {
-                let future = Pin::borrow(&mut future);
-                match future.poll(&mut context) {
-                    Ok(Async::Ready(val)) => return Ok(val),
-                    Ok(Async::Pending) => (),
-                    Err(e) => return Err(e),
-                }
-                EmbrioWaker::wait();
+        let local_waker = EmbrioWaker::local_waker();
+        let mut spawn = NoSpawn;
+        let mut context = Context::new(&local_waker, &mut spawn);
+
+        loop {
+            if let Poll::Ready(val) = future.reborrow().poll(&mut context) {
+                return val;
             }
-        })
+            EmbrioWaker::wait();
+        }
     }
 }

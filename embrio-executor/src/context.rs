@@ -1,8 +1,8 @@
 use core::mem;
 
-use futures::task::{Context, UnsafeWake};
+use futures_core::task::{Context, UnsafeWake};
 
-use EmbrioWaker;
+use crate::EmbrioWaker;
 
 struct WakerRaw {
     inner: *const UnsafeWake,

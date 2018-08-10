@@ -1,11 +1,11 @@
 use core::cmp;
 use core::fmt;
 use core::marker::Unpin;
-use core::mem::Pin;
+use core::mem::PinMut;
 
-use futures::{task, Async, Poll};
+use futures_core::{task, Poll};
 
-use io::Write;
+use crate::io::Write;
 
 pub struct Cursor<T: AsMut<[u8]>> {
     inner: T,
@@ -14,10 +14,7 @@ pub struct Cursor<T: AsMut<[u8]>> {
 
 impl<T: AsMut<[u8]>> Cursor<T> {
     pub fn new(inner: T) -> Cursor<T> {
-        Cursor {
-            inner,
-            position: 0,
-        }
+        Cursor { inner, position: 0 }
     }
 
     pub fn into_inner(self) -> T {
@@ -44,10 +41,10 @@ where
     type Error = !;
 
     fn poll_write(
-        mut self: Pin<Self>,
+        mut self: PinMut<Self>,
         _cx: &mut task::Context,
         buf: &[u8],
-    ) -> Poll<usize, Self::Error> {
+    ) -> Poll<Result<usize, Self::Error>> {
         let len = {
             let position = self.position;
             let inner = &mut self.inner.as_mut()[position..];
@@ -56,21 +53,21 @@ where
             len
         };
         self.position += len;
-        Ok(Async::Ready(len))
+        Poll::Ready(Ok(len))
     }
 
     fn poll_flush(
-        self: Pin<Self>,
+        self: PinMut<Self>,
         _cx: &mut task::Context,
-    ) -> Poll<(), Self::Error> {
-        Ok(Async::Ready(()))
+    ) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: Pin<Self>,
+        self: PinMut<Self>,
         _cx: &mut task::Context,
-    ) -> Poll<(), Self::Error> {
-        Ok(Async::Ready(()))
+    ) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 }
 
