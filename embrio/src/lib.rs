@@ -24,7 +24,7 @@ pub mod timer {
 
 pub mod io {
     pub use embrio_core::io::{void, Cursor, Read, Write};
-    pub use embrio_util::io::{close, flush, read_exact, write_all, Error};
+    pub use embrio_util::io::{close, flush, read_exact, write_all};
 }
 
 #[cfg(feature = "executor")]

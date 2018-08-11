@@ -1,4 +1,4 @@
-//#![no_std]
+#![no_std]
 #![feature(
     arbitrary_self_types,
     async_await,
