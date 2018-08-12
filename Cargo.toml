@@ -5,4 +5,5 @@ members = [
   "embrio-executor",
   "embrio-nrf51",
   "embrio-util",
+  "examples/echo",
 ]

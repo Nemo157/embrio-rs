@@ -1,0 +1,14 @@
+cargo-features = ["edition"]
+
+[package]
+name = "examples-echo"
+version = "0.1.0"
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+cortex-m-rt = { version = "0.5.1" }
+embrio = { path = "../../embrio" }
+nrf51 = { version = "0.5.0", features = ["rt"] }
+panic-abort = { version = "0.2.0" }

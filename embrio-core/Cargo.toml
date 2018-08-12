@@ -6,17 +6,6 @@ version = "0.1.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
-[dependencies]
-
 [dependencies.futures-core-preview]
 git = "https://github.com/rust-lang-nursery/futures-rs"
 default-features = false
-
-[dependencies.uom]
-version = "*"
-default-features = false
-features = ["u32"]
-
-[features]
-u32 = []
-default = ["u32"]
