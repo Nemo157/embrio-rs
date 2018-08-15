@@ -27,3 +27,8 @@ features = ["nightly"]
 
 [features]
 default = []
+
+# https://github.com/japaric/bare-metal/pull/10
+[patch.crates-io.bare-metal]
+git = "https://github.com/Nemo157/bare-metal"
+branch = "remove-old-feature"

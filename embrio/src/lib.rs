@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(use_extern_macros)]
 
 extern crate embrio_core;
 extern crate embrio_util;

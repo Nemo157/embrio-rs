@@ -1,11 +1,11 @@
 use futures_core::{
     future::FutureObj,
-    task::{Executor, SpawnObjError},
+    task::{Spawn, SpawnObjError},
 };
 
 pub struct NoSpawn;
 
-impl Executor for NoSpawn {
+impl Spawn for NoSpawn {
     fn spawn_obj(
         &mut self,
         _future: FutureObj<'static, ()>,
