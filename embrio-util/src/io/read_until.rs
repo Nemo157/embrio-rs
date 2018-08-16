@@ -23,11 +23,11 @@ pub fn read_until<'a, 'b: 'a, R: BufRead + 'a>(
                 let available = ready!(this.reborrow().poll_fill_buf(cx))?;
                 let limit = cmp::min(available.len(), buf.len() - position);
                 if let Some(i) = memchr::memchr(byte, &available[..limit]) {
-                    buf[position..position + i].copy_from_slice(&available[..i + 1]);
+                    buf[position..position + i + 1].copy_from_slice(&available[..i + 1]);
                     (true, i + 1)
                 } else {
-                    buf[position..].copy_from_slice(&available[..limit]);
-                    (false, available.len())
+                    buf[position..(position + limit)].copy_from_slice(&available[..limit]);
+                    (false, limit)
                 }
             };
             this.reborrow().consume(used);

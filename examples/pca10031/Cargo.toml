@@ -8,7 +8,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-echo = { path = "../apps/echo" }
+hello = { path = "../apps/hello" }
 cortex-m-rt = { version = "0.5.1" }
 nrf51 = { version = "0.5.0", features = ["rt"] }
 panic-abort = { version = "0.2.0" }

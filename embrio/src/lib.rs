@@ -28,7 +28,7 @@ pub mod io {
 
 #[cfg(feature = "executor")]
 pub mod executor {
-    pub use embrio_executor::Executor;
+    pub use embrio_executor::{block_on, Executor};
 }
 
 #[cfg(feature = "nrf51")]

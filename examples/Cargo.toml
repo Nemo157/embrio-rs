@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "apps/echo",
+  "apps/hello",
   "local",
   "pca10031",
 ]

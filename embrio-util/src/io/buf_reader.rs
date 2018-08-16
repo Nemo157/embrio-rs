@@ -44,14 +44,18 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
         let buffer = buffer.as_mut();
         let mut reader = unsafe { PinMut::new_unchecked(reader) };
         loop {
-            let buffer = &mut buffer[*right..];
-            if let Poll::Ready(amount) = reader.reborrow().poll_read(cx, buffer)? {
+            if let Poll::Ready(amount) = reader.reborrow().poll_read(cx, &mut buffer[*right..])? {
                 *right += amount;
             } else {
                 break;
             }
+            return Poll::Ready(Ok(&buffer[*left..*right]));
         }
-        Poll::Ready(Ok(&buffer[*left..*right]))
+        if *left == *right {
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(&buffer[*left..*right]))
+        }
     }
 
     fn consume(self: PinMut<'_, Self>, amount: usize) {
@@ -61,7 +65,7 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
         *left += amount;
         if *left == *right {
             *left = 0;
-            *left = 0;
+            *right = 0;
         }
     }
 }

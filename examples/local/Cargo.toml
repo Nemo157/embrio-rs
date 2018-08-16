@@ -8,5 +8,5 @@ edition = "2018"
 publish = false
 
 [dependencies]
-echo = { path = "../apps/echo" }
+hello = { path = "../apps/hello" }
 embrio-native = { path = "../../embrio-native" }

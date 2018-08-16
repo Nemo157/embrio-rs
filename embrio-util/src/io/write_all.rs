@@ -6,8 +6,6 @@ use futures_util::{ready, future::poll_fn};
 
 use embrio_core::io::Write;
 
-use crate::utils::Captures;
-
 #[derive(Debug)]
 pub enum Error<T> {
     WriteZero,
@@ -20,14 +18,13 @@ impl<T> From<T> for Error<T> {
     }
 }
 
-pub fn write_all<'a, 'b: 'a, W: Write + 'a>(
+pub fn write_all<'a, W: Write + 'a>(
     mut this: PinMut<'a, W>,
-    buf: &'b [u8],
-) -> impl Future<Output = Result<(), Error<W::Error>>>
-         + Captures<'a>
-         + Captures<'b> {
+    buf: impl AsRef<[u8]> + 'a,
+) -> impl Future<Output = Result<(), Error<W::Error>>> + 'a {
     let mut position = 0;
     poll_fn(move |cx| {
+        let buf = buf.as_ref();
         while position < buf.len() {
             let amount = ready!(this.reborrow().poll_write(cx, &buf[position..]))?;
             position += amount;
