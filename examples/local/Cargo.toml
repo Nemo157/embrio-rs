@@ -9,4 +9,4 @@ publish = false
 
 [dependencies]
 echo = { path = "../apps/echo" }
-embrio_native = { path = "../../embrio-native" }
+embrio-native = { path = "../../embrio-native" }
