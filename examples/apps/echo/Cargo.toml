@@ -1,0 +1,12 @@
+cargo-features = ["edition"]
+
+[package]
+name = "echo"
+version = "0.1.0"
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+embrio = { path = "../../../embrio" }
+pin-utils = "0.1.0-alpha.1"

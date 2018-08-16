@@ -1,10 +1,8 @@
 [workspace]
 members = [
-  "embrio",
-  "embrio-core",
-  "embrio-executor",
-  "embrio-nrf51",
-  "embrio-util",
+  "apps/echo",
+  "local",
+  "pca10031",
 ]
 
 # https://github.com/japaric/bare-metal/pull/10

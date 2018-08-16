@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 embrio-core = { path = "../embrio-core" }
+memchr = "2.0.1"
 
 [dependencies.futures-core-preview]
 git = "https://github.com/rust-lang-nursery/futures-rs"

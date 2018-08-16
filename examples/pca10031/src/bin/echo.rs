@@ -8,7 +8,7 @@ use cortex_m_rt::{entry, exception, ExceptionFrame};
 
 entry!(main);
 fn main() -> ! {
-    examples_echo::main();
+    echo::main();
 }
 
 exception!(HardFault, hard_fault);
