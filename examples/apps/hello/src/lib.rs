@@ -14,7 +14,7 @@ async fn run(input: impl Read, output: impl Write) -> Result<(), Error> {
     loop {
         await!(io::write_all(output.reborrow(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
         await!(io::flush(output.reborrow())).map_err(|_| Error)?;
-        match await!(io::read_until(input.reborrow(), b'\n', &mut buffer)).map_err(|_| Error)? {
+        match await!(io::read_until(input.reborrow(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
             Ok(amount) => {
                 if amount == 0 {
                     await!(io::write_all(output.reborrow(), b"\n")).map_err(|_| Error)?;

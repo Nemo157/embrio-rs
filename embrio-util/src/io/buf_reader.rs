@@ -5,14 +5,14 @@ use futures_util::ready;
 
 use embrio_core::io::{Read, BufRead};
 
-pub struct BufReader<R: Read, B: AsMut<[u8]>> {
+pub struct BufReader<R, B> {
     reader: R,
     buffer: B,
     left: usize,
     right: usize,
 }
 
-impl<R: Read, B: AsMut<[u8]>> BufReader<R, B> {
+impl<R, B> BufReader<R, B> {
     pub fn new(reader: R, buffer: B) -> Self {
         BufReader { reader, buffer, left: 0, right: 0 }
     }
@@ -22,7 +22,7 @@ impl<R: Read, B: AsMut<[u8]>> Read for BufReader<R, B> {
     type Error = R::Error;
 
     fn poll_read(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         cx: &mut task::Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>>
@@ -41,8 +41,8 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
     {
         // Safety: we re-wrap the only !Unpin field in a new PinMut
         let BufReader { ref mut reader, ref mut buffer, ref left, ref mut right } = unsafe { PinMut::get_mut_unchecked(self) };
-        let buffer = buffer.as_mut();
         let mut reader = unsafe { PinMut::new_unchecked(reader) };
+        let buffer = buffer.as_mut();
         loop {
             if let Poll::Ready(amount) = reader.reborrow().poll_read(cx, &mut buffer[*right..])? {
                 *right += amount;

@@ -7,17 +7,14 @@ use futures_util::{ready, future::poll_fn};
 
 use embrio_core::io::BufRead;
 
-use crate::utils::Captures;
-
-pub fn read_until<'a, 'b: 'a, R: BufRead + 'a>(
+pub fn read_until<'a, R: BufRead + 'a>(
     mut this: PinMut<'a, R>,
     byte: u8,
-    buf: &'b mut [u8],
-) -> impl Future<Output = Result<Result<usize, usize>, R::Error>>
-         + Captures<'a>
-         + Captures<'b> {
+    mut buf: impl AsMut<[u8]> + 'a,
+) -> impl Future<Output = Result<Result<usize, usize>, R::Error>> + 'a {
     let mut position = 0;
     poll_fn(move |cx| {
+        let buf = buf.as_mut();
         while position < buf.len() {
             let (done, used) = {
                 let available = ready!(this.reborrow().poll_fill_buf(cx))?;

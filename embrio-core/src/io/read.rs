@@ -8,20 +8,17 @@ pub trait Read {
     type Error: Debug;
 
     fn poll_read(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         cx: &mut task::Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>>;
 }
 
-impl<'a, R> Read for PinMut<'a, R>
-where
-    R: Read + 'a,
-{
+impl<R> Read for PinMut<'_, R> where R: Read {
     type Error = <R as Read>::Error;
 
     fn poll_read(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         cx: &mut task::Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
@@ -29,11 +26,11 @@ where
     }
 }
 
-impl<'a> Read for &'a [u8] {
+impl Read for &[u8] {
     type Error = !;
 
     fn poll_read(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         _cx: &mut task::Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {

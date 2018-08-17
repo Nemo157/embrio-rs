@@ -6,8 +6,6 @@ use futures_util::{ready, future::poll_fn};
 
 use embrio_core::io::Read;
 
-use crate::utils::Captures;
-
 #[derive(Debug)]
 pub enum Error<T> {
     UnexpectedEof,
@@ -20,14 +18,13 @@ impl<T> From<T> for Error<T> {
     }
 }
 
-pub fn read_exact<'a, 'b: 'a, R: Read + 'a>(
+pub fn read_exact<'a, R: Read + 'a>(
     mut this: PinMut<'a, R>,
-    buf: &'b mut [u8],
-) -> impl Future<Output = Result<(), Error<R::Error>>>
-         + Captures<'a>
-         + Captures<'b> {
+    mut buf: impl AsMut<[u8]> + 'a,
+) -> impl Future<Output = Result<(), Error<R::Error>>> + 'a {
     let mut position = 0;
     poll_fn(move |cx| {
+        let buf = buf.as_mut();
         while position < buf.len() {
             let amount = ready!(this.reborrow().poll_read(cx, &mut buf[position..]))?;
             position += amount;

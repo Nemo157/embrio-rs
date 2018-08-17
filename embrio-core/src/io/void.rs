@@ -14,7 +14,7 @@ impl Write for Void {
     type Error = !;
 
     fn poll_write(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
@@ -22,14 +22,14 @@ impl Write for Void {
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))

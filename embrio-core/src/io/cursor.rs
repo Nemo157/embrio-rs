@@ -41,7 +41,7 @@ where
     type Error = !;
 
     fn poll_write(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         _cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
@@ -57,14 +57,14 @@ where
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))

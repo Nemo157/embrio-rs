@@ -6,7 +6,7 @@ use futures_util::future::poll_fn;
 use embrio_core::io::Write;
 
 pub fn close<W: Write>(
-    mut this: PinMut<W>,
+    mut this: PinMut<'_, W>,
 ) -> impl Future<Output = Result<(), W::Error>> + '_ {
     poll_fn(move |cx| this.reborrow().poll_close(cx))
 }

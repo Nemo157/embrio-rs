@@ -7,30 +7,27 @@ pub trait Write {
     type Error: Debug;
 
     fn poll_write(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>>;
 
     fn poll_flush(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>>;
 
     fn poll_close(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>>;
 }
 
-impl<'a, W> Write for PinMut<'a, W>
-where
-    W: Write + 'a,
-{
+impl<W> Write for PinMut<'_, W> where W: Write {
     type Error = <W as Write>::Error;
 
     fn poll_write(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
@@ -38,25 +35,25 @@ where
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         <W as Write>::poll_flush(PinMut::reborrow(&mut *self), cx)
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         <W as Write>::poll_close(PinMut::reborrow(&mut *self), cx)
     }
 }
 
-impl<'a> Write for &'a mut [u8] {
+impl Write for &mut [u8] {
     type Error = !;
 
     fn poll_write(
-        mut self: PinMut<Self>,
+        mut self: PinMut<'_, Self>,
         _cx: &mut task::Context,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
@@ -68,14 +65,14 @@ impl<'a> Write for &'a mut [u8] {
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<Self>,
+        self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
