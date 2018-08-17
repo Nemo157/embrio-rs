@@ -8,8 +8,6 @@
     pin,
 )]
 
-use futures_core::Future;
-
 mod executor;
 mod spawn;
 mod waker;
@@ -17,7 +15,3 @@ mod waker;
 pub use self::{
     executor::Executor, waker::EmbrioWaker,
 };
-
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    Executor::new().block_on(future)
-}

@@ -31,6 +31,10 @@ async fn run(input: impl Read, output: impl Write) -> Result<(), Error> {
     }
 }
 
-pub fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
-    embrio::executor::block_on(run(input, output))
+/// # Safety
+///
+/// This function can only be called _once_ in the entire lifetime of a process.
+pub unsafe fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
+    static mut EXECUTOR: embrio::Executor = embrio::Executor::new();
+    EXECUTOR.block_on(run(input, output))
 }

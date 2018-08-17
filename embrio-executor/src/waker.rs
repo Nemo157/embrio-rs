@@ -1,5 +1,3 @@
-// TODO: Make this much much _MUCH_ safer to use
-
 use core::{
     sync::atomic::{AtomicBool, Ordering},
     ptr::NonNull,
@@ -8,33 +6,33 @@ use futures_core::{
     task::{LocalWaker, UnsafeWake, Waker},
 };
 
-pub struct EmbrioWaker<'a> {
-    woken: &'a AtomicBool,
+pub struct EmbrioWaker {
+    woken: AtomicBool,
 }
 
-impl<'a> EmbrioWaker<'a> {
-    pub(crate) fn new(woken: &'a AtomicBool) -> Self {
-        EmbrioWaker { woken }
+impl EmbrioWaker {
+    pub(crate) const fn new() -> Self {
+        EmbrioWaker { woken: AtomicBool::new(false) }
     }
 
-    pub(crate) unsafe fn waker(&self) -> Waker {
-        Waker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
+    pub(crate) fn local_waker(&'static self) -> LocalWaker {
+        unsafe { LocalWaker::new(NonNull::new_unchecked(&self as &UnsafeWake as *const _ as *mut _)) }
     }
 
-    pub(crate) unsafe fn local_waker(&self) -> LocalWaker {
-        LocalWaker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
+    pub(crate) fn test_and_clear(&self) -> bool {
+        self.woken.swap(false, Ordering::AcqRel)
     }
 }
 
-unsafe impl<'a> UnsafeWake for EmbrioWaker<'a> {
+unsafe impl UnsafeWake for &'static EmbrioWaker {
     unsafe fn clone_raw(&self) -> Waker {
-        self.waker()
+        Waker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
     }
 
     unsafe fn drop_raw(&self) {
     }
 
     unsafe fn wake(&self) {
-        self.woken.store(true, Ordering::SeqCst)
+        self.woken.store(true, Ordering::Release)
     }
 }
