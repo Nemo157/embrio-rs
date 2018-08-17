@@ -1,18 +1,17 @@
 use core::{
-    sync::atomic::{AtomicBool, Ordering},
+    cell::UnsafeCell,
     ptr::NonNull,
-};
-use futures_core::{
     task::{LocalWaker, UnsafeWake, Waker},
 };
+use cortex_m::interrupt::{self, Mutex};
 
 pub struct EmbrioWaker {
-    woken: AtomicBool,
+    woken: Mutex<UnsafeCell<bool>>,
 }
 
 impl EmbrioWaker {
     pub(crate) const fn new() -> Self {
-        EmbrioWaker { woken: AtomicBool::new(false) }
+        EmbrioWaker { woken: Mutex::new(UnsafeCell::new(false)) }
     }
 
     pub(crate) fn local_waker(&'static self) -> LocalWaker {
@@ -20,7 +19,16 @@ impl EmbrioWaker {
     }
 
     pub(crate) fn test_and_clear(&self) -> bool {
-        self.woken.swap(false, Ordering::AcqRel)
+        interrupt::free(|cs| {
+            let woken = unsafe { &mut *self.woken.borrow(cs).get() };
+            let was_woken = *woken;
+            *woken = false;
+            was_woken
+        })
+    }
+
+    pub(crate) fn sleep() {
+        cortex_m::asm::wfe();
     }
 }
 
@@ -33,6 +41,9 @@ unsafe impl UnsafeWake for &'static EmbrioWaker {
     }
 
     unsafe fn wake(&self) {
-        self.woken.store(true, Ordering::Release)
+        interrupt::free(|cs| {
+            *self.woken.borrow(cs).get() = true;
+        });
+        cortex_m::asm::sev();
     }
 }

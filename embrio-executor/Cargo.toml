@@ -17,3 +17,9 @@ default-features = false
 git = "https://github.com/rust-lang-nursery/futures-rs"
 default-features = false
 features = ["nightly"]
+
+[target.thumbv6m-none-eabi.dependencies]
+cortex-m = { version = "0.5.4", features = ["const-fn"] }
+
+[target.thumbv7m-none-eabi.dependencies]
+cortex-m = { version = "0.5.4", features = ["const-fn"] }

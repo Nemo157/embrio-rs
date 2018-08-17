@@ -23,7 +23,7 @@ impl Executor {
                 return val;
             } else {
                 while !self.waker.test_and_clear() {
-                    // WFE
+                    EmbrioWaker::sleep()
                 }
             }
         }
