@@ -4,6 +4,7 @@
     async_await,
     const_fn,
     core_intrinsics,
+    existential_type,
     futures_api,
     in_band_lifetimes,
     macro_at_most_once_rep,
