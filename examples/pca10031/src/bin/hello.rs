@@ -1,13 +1,18 @@
 #![no_std]
 #![no_main]
 
-use panic_abort as _;
+#![feature(underscore_imports)]
+
+// Link only imports, for panic implementation and interrupt vectors
+#[allow(unused_imports)] // https://github.com/rust-lang/rust/issues/53128#issuecomment-414117024
+use { panic_abort as _, nrf51 as _ };
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 
 entry!(main);
 fn main() -> ! {
-    echo::main();
+    loop {
+    }
 }
 
 exception!(HardFault, hard_fault);
