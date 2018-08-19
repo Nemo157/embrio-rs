@@ -1,8 +1,7 @@
 #![no_std]
 #![no_main]
 
-extern crate panic_abort;
-extern crate nrf51;
+use panic_abort as _;
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 
