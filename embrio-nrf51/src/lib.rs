@@ -16,3 +16,9 @@ mod zst_ref;
 pub mod gpio;
 pub mod timer;
 pub mod uart;
+
+use nrf51::interrupt;
+
+interrupt!(UART0, self::uart::Uart::interrupt);
+interrupt!(TIMER0, self::timer::Timer::<nrf51::TIMER0>::interrupt);
+interrupt!(TIMER1, self::timer::Timer::<nrf51::TIMER1>::interrupt);
