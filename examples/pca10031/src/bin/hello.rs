@@ -11,8 +11,23 @@ use cortex_m_rt::{entry, exception, ExceptionFrame};
 
 entry!(main);
 fn main() -> ! {
-    loop {
-    }
+    let mut core_peripherals = nrf51::CorePeripherals::take().unwrap();
+    let mut peripherals = nrf51::Peripherals::take().unwrap();
+    let pins = embrio_nrf51::gpio::Pins::new(&mut peripherals.GPIO);
+    let mut txpin = pins.9.output().push_pull();
+    let mut rxpin = pins.11.input().floating();
+    let uart = embrio_nrf51::uart::Uart::new(
+        &mut peripherals.UART0,
+        &mut txpin,
+        &mut rxpin,
+        embrio_nrf51::uart::BAUDRATEW::BAUD115200,
+        &mut core_peripherals.NVIC,
+    );
+    let (tx, rx) = uart.split();
+    unsafe {
+        hello::main(rx, tx)
+    }.unwrap();
+    unreachable!()
 }
 
 exception!(HardFault, hard_fault);
