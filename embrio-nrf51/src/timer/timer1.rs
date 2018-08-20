@@ -25,7 +25,8 @@ impl Timer<TIMER1> {
         });
     }
 
-    pub(crate) fn interrupt() {
+    #[doc(hidden)]
+    pub fn interrupt() {
         free(|c| {
             if let Some(waker) = &*TIMER1_WAKER.borrow(c).borrow() {
                 waker.wake();

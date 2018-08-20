@@ -80,7 +80,8 @@ impl<'a> Uart<'a> {
         });
     }
 
-    pub(crate) fn interrupt() {
+    #[doc(hidden)]
+    pub fn interrupt() {
         free(|c| {
             if let Some(waker) = &*UART0_WAKER.borrow(c).borrow() {
                 waker.wake();

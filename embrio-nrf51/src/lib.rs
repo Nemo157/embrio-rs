@@ -17,8 +17,17 @@ pub mod gpio;
 pub mod timer;
 pub mod uart;
 
-use nrf51::interrupt;
+#[doc(hidden)]
+pub use nrf51::interrupt;
 
-interrupt!(UART0, self::uart::Uart::interrupt);
-interrupt!(TIMER0, self::timer::Timer::<nrf51::TIMER0>::interrupt);
-interrupt!(TIMER1, self::timer::Timer::<nrf51::TIMER1>::interrupt);
+/// This **MUST** be called in any binary that depends on this crate, for some
+/// reason linking the interrupt handlers in when they're defined in a
+/// dependency doesn't work.
+#[macro_export]
+macro_rules! interrupts {
+    () => {
+        $crate::interrupt!(UART0, $crate::uart::Uart::interrupt);
+        $crate::interrupt!(TIMER0, $crate::timer::Timer::<nrf51::TIMER0>::interrupt);
+        $crate::interrupt!(TIMER1, $crate::timer::Timer::<nrf51::TIMER1>::interrupt);
+    }
+}

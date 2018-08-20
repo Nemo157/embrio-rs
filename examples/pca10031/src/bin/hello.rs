@@ -8,19 +8,20 @@
 use { panic_abort as _, nrf51 as _ };
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
+use embrio_nrf51::{gpio::Pins, uart::{Uart, BAUDRATEW}, interrupts};
 
 entry!(main);
 fn main() -> ! {
     let mut core_peripherals = nrf51::CorePeripherals::take().unwrap();
     let mut peripherals = nrf51::Peripherals::take().unwrap();
-    let pins = embrio_nrf51::gpio::Pins::new(&mut peripherals.GPIO);
+    let pins = Pins::new(&mut peripherals.GPIO);
     let mut txpin = pins.9.output().push_pull();
     let mut rxpin = pins.11.input().floating();
-    let uart = embrio_nrf51::uart::Uart::new(
+    let uart = Uart::new(
         &mut peripherals.UART0,
         &mut txpin,
         &mut rxpin,
-        embrio_nrf51::uart::BAUDRATEW::BAUD115200,
+        BAUDRATEW::BAUD115200,
         &mut core_peripherals.NVIC,
     );
     let (tx, rx) = uart.split();
@@ -39,3 +40,5 @@ exception!(*, default_handler);
 fn default_handler(irqn: i16) {
     panic!("Unhandled exception (IRQn = {})", irqn);
 }
+
+interrupts!();
