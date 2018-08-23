@@ -2,6 +2,7 @@
 #![feature(
     arbitrary_self_types,
     async_await,
+    const_fn,
     futures_api,
     generator_trait,
     generators,
@@ -10,7 +11,7 @@
     pin,
 )]
 
-use core::{future::Future, task::{self, Poll}, ptr::NonNull, mem::PinMut, ops::{Generator, GeneratorState}};
+use core::{future::Future, task::{self, Poll}, ptr::NonNull, mem::PinMut, ops::{Generator, GeneratorState}, cell::UnsafeCell};
 use embrio::io::{self, Read, Write, BufReader};
 use pin_utils::pin_mut;
 
@@ -105,6 +106,12 @@ fn run(input: impl Read, output: impl Write) -> impl Future<Output = Result<(), 
 ///
 /// This function can only be called _once_ in the entire lifetime of a process.
 pub unsafe fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
-    static mut EXECUTOR: embrio::Executor = embrio::Executor::new();
-    EXECUTOR.block_on(run(input, output))
+    struct Unsync<T>(UnsafeCell<T>);
+    impl<T> Unsync<T> {
+        const fn new(value: T) -> Self { Unsync(UnsafeCell::new(value)) }
+        unsafe fn get_mut_unchecked(&self) -> &mut T { &mut *self.0.get() }
+    }
+    unsafe impl<T> Sync for Unsync<T> {}
+    static EXECUTOR: Unsync<embrio::Executor> = Unsync::new(embrio::Executor::new());
+    EXECUTOR.get_mut_unchecked().block_on(run(input, output))
 }
