@@ -12,7 +12,7 @@ use embrio_nrf51::{gpio::Pins, uart::{Uart, BAUDRATEW}, interrupts};
 
 entry!(main);
 fn main() -> ! {
-    let mut core_peripherals = nrf51::CorePeripherals::take().unwrap();
+    let core_peripherals = nrf51::CorePeripherals::take().unwrap();
     let mut peripherals = nrf51::Peripherals::take().unwrap();
     let pins = Pins::new(&mut peripherals.GPIO);
     let mut txpin = pins.9.output().push_pull();
@@ -22,7 +22,7 @@ fn main() -> ! {
         &mut txpin,
         &mut rxpin,
         BAUDRATEW::BAUD115200,
-        &mut core_peripherals.NVIC,
+        core_peripherals.NVIC,
     );
     let (tx, rx) = uart.split();
     unsafe {

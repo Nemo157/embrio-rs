@@ -33,6 +33,7 @@ pub struct Rx<'a> {
     _rxpin: &'a mut Pin<'a, Input<Floating>>,
 }
 
+static NVIC: Mutex<RefCell<Option<NVIC>>> = Mutex::new(RefCell::new(None));
 static UART0_RX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
 static UART0_TX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
 
@@ -42,7 +43,7 @@ impl<'a> Uart<'a> {
         txpin: &'a mut Pin<'a, Output<PushPull>>,
         rxpin: &'a mut Pin<'a, Input<Floating>>,
         speed: BAUDRATEW,
-        nvic: &mut NVIC,
+        mut nvic: NVIC,
     ) -> Self {
         uart.txd.write(|w| unsafe { w.bits(0) });
         uart.pseltxd
@@ -57,6 +58,9 @@ impl<'a> Uart<'a> {
         uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
         nvic.enable(Interrupt::UART0);
+        free(|c| {
+            NVIC.borrow(c).replace(Some(nvic));
+        });
 
         let uart = ZstRef::new(uart);
         Uart {
@@ -83,6 +87,9 @@ impl<'a> Uart<'a> {
             }
             if let Some(waker) = &*UART0_TX_WAKER.borrow(c).borrow() {
                 waker.wake();
+            }
+            if let Some(nvic) = &mut *NVIC.borrow(c).borrow_mut() {
+                nvic.clear_pending(Interrupt::UART0);
             }
         });
     }
