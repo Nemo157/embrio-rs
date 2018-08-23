@@ -33,7 +33,8 @@ pub struct Rx<'a> {
     _rxpin: &'a mut Pin<'a, Input<Floating>>,
 }
 
-static UART0_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
+static UART0_RX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
+static UART0_TX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
 
 impl<'a> Uart<'a> {
     pub fn new(
@@ -74,18 +75,31 @@ impl<'a> Uart<'a> {
         (Tx { uart, _txpin }, Rx { uart, _rxpin })
     }
 
-    fn register_waker(waker: Waker) {
-        free(|c| {
-            UART0_WAKER.borrow(c).replace(Some(waker));
-        });
-    }
-
     #[doc(hidden)]
     pub fn interrupt() {
         free(|c| {
-            if let Some(waker) = &*UART0_WAKER.borrow(c).borrow() {
+            if let Some(waker) = &*UART0_RX_WAKER.borrow(c).borrow() {
                 waker.wake();
             }
+            if let Some(waker) = &*UART0_TX_WAKER.borrow(c).borrow() {
+                waker.wake();
+            }
+        });
+    }
+}
+
+impl<'a> Rx<'a> {
+    fn register_waker(waker: Waker) {
+        free(|c| {
+            UART0_RX_WAKER.borrow(c).replace(Some(waker));
+        });
+    }
+}
+
+impl<'a> Tx<'a> {
+    fn register_waker(waker: Waker) {
+        free(|c| {
+            UART0_TX_WAKER.borrow(c).replace(Some(waker));
         });
     }
 }
@@ -102,7 +116,7 @@ impl<'a> io::Read for Rx<'a> {
             return Poll::Ready(Ok(0));
         }
 
-        Uart::register_waker(cx.waker().clone());
+        Self::register_waker(cx.waker().clone());
         if self.uart.events_rxdrdy.read().bits() == 1 {
             self.uart.events_rxdrdy.reset();
             buf[0] = self.uart.rxd.read().bits() as u8;
@@ -125,7 +139,7 @@ impl<'a> io::Write for Tx<'a> {
             return Poll::Ready(Ok(0));
         }
 
-        Uart::register_waker(cx.waker().clone());
+        Self::register_waker(cx.waker().clone());
         if self.uart.events_txdrdy.read().bits() == 1 {
             self.uart.events_txdrdy.reset();
             self.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
@@ -139,7 +153,7 @@ impl<'a> io::Write for Tx<'a> {
         self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
-        Uart::register_waker(cx.waker().clone());
+        Self::register_waker(cx.waker().clone());
         if self.uart.events_txdrdy.read().bits() == 1 {
             // We don't reset the event here because it's used to keep track of
             // whether there is an outstanding write or not.
