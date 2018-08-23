@@ -6,7 +6,12 @@ members = [
   "embrio-native",
   "embrio-nrf51",
   "embrio-util",
+  "examples/apps/hello",
+  "examples/local",
+  "examples/pca10031",
 ]
+
+default-members = ["embrio"]
 
 # https://github.com/japaric/bare-metal/pull/10
 [patch.crates-io.bare-metal]
