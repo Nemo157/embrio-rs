@@ -18,7 +18,7 @@ fn main() -> ! {
     let mut txpin = pins.9.output().push_pull();
     let mut rxpin = pins.11.input().floating();
     let uart = Uart::new(
-        &mut peripherals.UART0,
+        peripherals.UART0,
         &mut txpin,
         &mut rxpin,
         BAUDRATEW::BAUD115200,

@@ -9,37 +9,44 @@ use crate::{
         mode::{Floating, Input, Output, PushPull},
         Pin,
     },
-    zst_ref::ZstRef,
 };
 
 pub use nrf51::uart0::baudrate::BAUDRATEW;
 
 #[derive(Debug)]
 pub struct Uart<'a> {
-    uart: ZstRef<'a, UART0>,
     _txpin: &'a mut Pin<'a, Output<PushPull>>,
     _rxpin: &'a mut Pin<'a, Input<Floating>>,
 }
 
 #[derive(Debug)]
 pub struct Tx<'a> {
-    uart: ZstRef<'a, UART0>,
     _txpin: &'a mut Pin<'a, Output<PushPull>>,
 }
 
 #[derive(Debug)]
 pub struct Rx<'a> {
-    uart: ZstRef<'a, UART0>,
     _rxpin: &'a mut Pin<'a, Input<Floating>>,
 }
 
-static NVIC: Mutex<RefCell<Option<NVIC>>> = Mutex::new(RefCell::new(None));
-static UART0_RX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
-static UART0_TX_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
+struct Events {
+    rxdrdy: bool,
+    txdrdy: bool,
+}
+
+struct Context {
+    uart: UART0,
+    nvic: NVIC,
+    events: Events,
+    rx_waker: Option<Waker>,
+    tx_waker: Option<Waker>,
+}
+
+static CONTEXT: Mutex<RefCell<Option<Context>>> = Mutex::new(RefCell::new(None));
 
 impl<'a> Uart<'a> {
     pub fn new(
-        uart: &'a mut UART0,
+        uart: UART0,
         txpin: &'a mut Pin<'a, Output<PushPull>>,
         rxpin: &'a mut Pin<'a, Input<Floating>>,
         speed: BAUDRATEW,
@@ -59,54 +66,46 @@ impl<'a> Uart<'a> {
 
         nvic.enable(Interrupt::UART0);
         free(|c| {
-            NVIC.borrow(c).replace(Some(nvic));
+            CONTEXT.borrow(c).replace(Some(Context {
+                uart,
+                nvic,
+                events: Events {
+                    rxdrdy: false,
+                    txdrdy: false,
+                },
+                rx_waker: None,
+                tx_waker: None,
+            }));
         });
 
-        let uart = ZstRef::new(uart);
-        Uart {
-            uart,
-            _txpin: txpin,
-            _rxpin: rxpin,
-        }
+        Uart { _txpin: txpin, _rxpin: rxpin }
     }
 
     pub fn split(self) -> (Tx<'a>, Rx<'a>) {
-        let Uart {
-            uart,
-            _txpin,
-            _rxpin,
-        } = self;
-        (Tx { uart, _txpin }, Rx { uart, _rxpin })
+        let Uart { _txpin, _rxpin } = self;
+        (Tx { _txpin }, Rx { _rxpin })
     }
 
     #[doc(hidden)]
     pub fn interrupt() {
         free(|c| {
-            if let Some(waker) = &*UART0_RX_WAKER.borrow(c).borrow() {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+            if let Some(waker) = context.rx_waker.as_ref() {
                 waker.wake();
             }
-            if let Some(waker) = &*UART0_TX_WAKER.borrow(c).borrow() {
+            if let Some(waker) = context.tx_waker.as_ref() {
                 waker.wake();
             }
-            if let Some(nvic) = &mut *NVIC.borrow(c).borrow_mut() {
-                nvic.clear_pending(Interrupt::UART0);
+            context.nvic.clear_pending(Interrupt::UART0);
+            if context.uart.events_rxdrdy.read().bits() == 1 {
+                context.uart.events_rxdrdy.reset();
+                context.events.rxdrdy = true;
             }
-        });
-    }
-}
-
-impl<'a> Rx<'a> {
-    fn register_waker(waker: Waker) {
-        free(|c| {
-            UART0_RX_WAKER.borrow(c).replace(Some(waker));
-        });
-    }
-}
-
-impl<'a> Tx<'a> {
-    fn register_waker(waker: Waker) {
-        free(|c| {
-            UART0_TX_WAKER.borrow(c).replace(Some(waker));
+            if context.uart.events_txdrdy.read().bits() == 1 {
+                context.uart.events_txdrdy.reset();
+                context.events.txdrdy = true;
+            }
         });
     }
 }
@@ -123,14 +122,19 @@ impl<'a> io::Read for Rx<'a> {
             return Poll::Ready(Ok(0));
         }
 
-        Self::register_waker(cx.waker().clone());
-        if self.uart.events_rxdrdy.read().bits() == 1 {
-            self.uart.events_rxdrdy.reset();
-            buf[0] = self.uart.rxd.read().bits() as u8;
-            Poll::Ready(Ok(1))
-        } else {
-            Poll::Pending
-        }
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+            if context.events.rxdrdy {
+                context.events.rxdrdy = false;
+                buf[0] = context.uart.rxd.read().bits() as u8;
+                context.rx_waker = None;
+                Poll::Ready(Ok(1))
+            } else {
+                context.rx_waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
+        })
     }
 }
 
@@ -146,35 +150,50 @@ impl<'a> io::Write for Tx<'a> {
             return Poll::Ready(Ok(0));
         }
 
-        Self::register_waker(cx.waker().clone());
-        if self.uart.events_txdrdy.read().bits() == 1 {
-            self.uart.events_txdrdy.reset();
-            self.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
-            Poll::Ready(Ok(1))
-        } else {
-            Poll::Pending
-        }
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+            if context.events.txdrdy {
+                context.events.txdrdy = false;
+                context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
+                context.tx_waker = None;
+                Poll::Ready(Ok(1))
+            } else {
+                context.tx_waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
+        })
     }
 
     fn poll_flush(
         self: PinMut<'_, Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
-        Self::register_waker(cx.waker().clone());
-        if self.uart.events_txdrdy.read().bits() == 1 {
-            // We don't reset the event here because it's used to keep track of
-            // whether there is an outstanding write or not.
-            Poll::Ready(Ok(()))
-        } else {
-            Poll::Pending
-        }
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+            if context.events.txdrdy {
+                // We don't reset the event here because it's used to keep track of
+                // whether there is an outstanding write or not.
+                context.tx_waker = None;
+                Poll::Ready(Ok(()))
+            } else {
+                context.tx_waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
+        })
     }
 
     fn poll_close(
         self: PinMut<'_, Self>,
         _cx: &mut task::Context,
     ) -> Poll<Result<(), Self::Error>> {
-        self.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
-        Poll::Ready(Ok(()))
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+            context.tx_waker = None;
+            context.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+            Poll::Ready(Ok(()))
+        })
     }
 }
