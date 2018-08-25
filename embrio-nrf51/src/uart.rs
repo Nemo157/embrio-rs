@@ -1,4 +1,4 @@
-use core::{mem::PinMut, cell::RefCell};
+use core::{cmp, mem::PinMut, cell::RefCell};
 use futures_core::task::{self, Poll, Waker};
 use embrio_core::io;
 use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};
@@ -34,12 +34,19 @@ struct Events {
     txdrdy: bool,
 }
 
+struct TxContext {
+    waker: Option<Waker>,
+    buffer: [u8; 8],
+    to_send: u8,
+    sent: u8,
+}
+
 struct Context {
     uart: UART0,
     nvic: NVIC,
     events: Events,
     rx_waker: Option<Waker>,
-    tx_waker: Option<Waker>,
+    tx: TxContext,
 }
 
 static CONTEXT: Mutex<RefCell<Option<Context>>> = Mutex::new(RefCell::new(None));
@@ -74,7 +81,12 @@ impl<'a> Uart<'a> {
                     txdrdy: false,
                 },
                 rx_waker: None,
-                tx_waker: None,
+                tx: TxContext {
+                    waker: None,
+                    buffer: [0; 8],
+                    to_send: 0,
+                    sent: 0,
+                }
             }));
         });
 
@@ -101,9 +113,15 @@ impl<'a> Uart<'a> {
             }
             if context.uart.events_txdrdy.read().bits() == 1 {
                 context.uart.events_txdrdy.reset();
-                context.events.txdrdy = true;
-                if let Some(waker) = context.tx_waker.as_ref() {
-                    waker.wake();
+                if context.tx.sent < context.tx.to_send {
+                    let byte = context.tx.buffer[context.tx.sent as usize];
+                    context.tx.sent += 1;
+                    context.uart.txd.write(|w| unsafe { w.bits(byte.into()) });
+                } else {
+                    context.events.txdrdy = true;
+                    if let Some(waker) = context.tx.waker.as_ref() {
+                        waker.wake();
+                    }
                 }
             }
         });
@@ -154,12 +172,16 @@ impl<'a> io::Write for Tx<'a> {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             let context = context.as_mut().unwrap();
             if context.events.txdrdy {
+                let length = cmp::min(buf.len() - 1, context.tx.buffer.len());
                 context.events.txdrdy = false;
+                context.tx.to_send = length as u8;
+                context.tx.sent = 0;
+                context.tx.buffer[..length].copy_from_slice(&buf[1..length + 1]);
+                context.tx.waker = None;
                 context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
-                context.tx_waker = None;
-                Poll::Ready(Ok(1))
+                Poll::Ready(Ok(length + 1))
             } else {
-                context.tx_waker = Some(cx.waker().clone());
+                context.tx.waker = Some(cx.waker().clone());
                 Poll::Pending
             }
         })
@@ -175,10 +197,10 @@ impl<'a> io::Write for Tx<'a> {
             if context.events.txdrdy {
                 // We don't reset the event here because it's used to keep track of
                 // whether there is an outstanding write or not.
-                context.tx_waker = None;
+                context.tx.waker = None;
                 Poll::Ready(Ok(()))
             } else {
-                context.tx_waker = Some(cx.waker().clone());
+                context.tx.waker = Some(cx.waker().clone());
                 Poll::Pending
             }
         })
@@ -191,7 +213,7 @@ impl<'a> io::Write for Tx<'a> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             let context = context.as_mut().unwrap();
-            context.tx_waker = None;
+            context.tx.waker = None;
             context.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
             Poll::Ready(Ok(()))
         })
