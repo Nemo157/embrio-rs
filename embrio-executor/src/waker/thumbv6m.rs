@@ -15,7 +15,7 @@ impl EmbrioWaker {
     }
 
     pub(crate) fn local_waker(&'static self) -> LocalWaker {
-        unsafe { LocalWaker::new(NonNull::new_unchecked(&self as &UnsafeWake as *const _ as *mut _)) }
+        unsafe { LocalWaker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _)) }
     }
 
     pub(crate) fn test_and_clear(&self) -> bool {
@@ -32,7 +32,7 @@ impl EmbrioWaker {
     }
 }
 
-unsafe impl UnsafeWake for &'static EmbrioWaker {
+unsafe impl UnsafeWake for EmbrioWaker {
     unsafe fn clone_raw(&self) -> Waker {
         Waker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
     }
