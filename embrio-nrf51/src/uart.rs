@@ -91,20 +91,20 @@ impl<'a> Uart<'a> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             let context = context.as_mut().unwrap();
-            if let Some(waker) = context.rx_waker.as_ref() {
-                waker.wake();
-            }
-            if let Some(waker) = context.tx_waker.as_ref() {
-                waker.wake();
-            }
             context.nvic.clear_pending(Interrupt::UART0);
             if context.uart.events_rxdrdy.read().bits() == 1 {
                 context.uart.events_rxdrdy.reset();
                 context.events.rxdrdy = true;
+                if let Some(waker) = context.rx_waker.as_ref() {
+                    waker.wake();
+                }
             }
             if context.uart.events_txdrdy.read().bits() == 1 {
                 context.uart.events_txdrdy.reset();
                 context.events.txdrdy = true;
+                if let Some(waker) = context.tx_waker.as_ref() {
+                    waker.wake();
+                }
             }
         });
     }
