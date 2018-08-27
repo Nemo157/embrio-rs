@@ -17,7 +17,7 @@ macro_rules! pins {
         pub struct Pins<'a>($(pub pin!($i)),*);
 
         impl<'a> Pins<'a> {
-            pub fn new(gpio: &'a mut GPIO) -> Self {
+            pub(crate) fn new(gpio: &'a mut GPIO) -> Self {
                 Pins($(Pin::new(&*gpio, $i)),*)
             }
         }

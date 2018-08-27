@@ -1,4 +1,4 @@
-use core::{cmp, mem::PinMut, cell::RefCell};
+use core::{cmp, mem::PinMut, cell::RefCell, marker::PhantomData};
 use futures_core::task::{self, Poll, Waker};
 use embrio_core::io;
 use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};
@@ -14,19 +14,27 @@ use crate::{
 pub use nrf51::uart0::baudrate::BAUDRATEW;
 
 #[derive(Debug)]
-pub struct Uart<'a> {
-    _txpin: &'a mut Pin<'a, Output<PushPull>>,
-    _rxpin: &'a mut Pin<'a, Input<Floating>>,
+pub struct Uart<'b> {
+    _marker: PhantomData<(
+        &'b mut UART0,
+        &'b mut NVIC,
+    )>,
 }
 
 #[derive(Debug)]
-pub struct Tx<'a> {
-    _txpin: &'a mut Pin<'a, Output<PushPull>>,
+pub struct Tx<'a, 'b: 'a> {
+    _marker: PhantomData<(
+        &'a mut Uart<'b>,
+        &'a mut Pin<'b, Output<PushPull>>,
+    )>,
 }
 
 #[derive(Debug)]
-pub struct Rx<'a> {
-    _rxpin: &'a mut Pin<'a, Input<Floating>>,
+pub struct Rx<'a, 'b: 'a> {
+    _marker: PhantomData<(
+        &'a mut Uart<'b>,
+        &'a mut Pin<'b, Input<Floating>>,
+    )>,
 }
 
 struct Events {
@@ -42,8 +50,8 @@ struct TxContext {
 }
 
 struct Context {
-    uart: UART0,
-    nvic: NVIC,
+    uart: &'static mut UART0,
+    nvic: &'static mut NVIC,
     events: Events,
     rx_waker: Option<Waker>,
     tx: TxContext,
@@ -51,31 +59,19 @@ struct Context {
 
 static CONTEXT: Mutex<RefCell<Option<Context>>> = Mutex::new(RefCell::new(None));
 
-impl<'a> Uart<'a> {
-    pub fn new(
-        uart: UART0,
-        txpin: &'a mut Pin<'a, Output<PushPull>>,
-        rxpin: &'a mut Pin<'a, Input<Floating>>,
-        speed: BAUDRATEW,
-        mut nvic: NVIC,
+unsafe fn erase_lifetime<'a, T>(t: &'a mut T) -> &'static mut T {
+    &mut *(t as *mut T)
+}
+
+impl<'b> Uart<'b> {
+    pub(crate) fn new(
+        uart: &'b mut UART0,
+        nvic: &'b mut NVIC,
     ) -> Self {
-        uart.txd.write(|w| unsafe { w.bits(0) });
-        uart.pseltxd
-            .write(|w| unsafe { w.bits(txpin.get_id() as u32) });
-        uart.pselrxd
-            .write(|w| unsafe { w.bits(rxpin.get_id() as u32) });
-        uart.baudrate.write(|w| w.baudrate().variant(speed));
-        uart.intenset.write(|w| w.rxdrdy().set().txdrdy().set());
-        uart.enable.write(|w| w.enable().enabled());
-
-        uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
-        uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
-
-        nvic.enable(Interrupt::UART0);
         free(|c| {
             CONTEXT.borrow(c).replace(Some(Context {
-                uart,
-                nvic,
+                uart: unsafe { erase_lifetime(uart) },
+                nvic: unsafe { erase_lifetime(nvic) },
                 events: Events {
                     rxdrdy: false,
                     txdrdy: false,
@@ -90,12 +86,35 @@ impl<'a> Uart<'a> {
             }));
         });
 
-        Uart { _txpin: txpin, _rxpin: rxpin }
+        Uart { _marker: PhantomData }
     }
 
-    pub fn split(self) -> (Tx<'a>, Rx<'a>) {
-        let Uart { _txpin, _rxpin } = self;
-        (Tx { _txpin }, Rx { _rxpin })
+    pub fn init<'a>(
+        &'a mut self,
+        txpin: &'a mut Pin<'b, Output<PushPull>>,
+        rxpin: &'a mut Pin<'b, Input<Floating>>,
+        speed: BAUDRATEW,
+    ) -> (Tx<'a, 'b>, Rx<'a, 'b>) where 'b: 'a {
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+
+            context.uart.txd.write(|w| unsafe { w.bits(0) });
+            context.uart.pseltxd
+                .write(|w| unsafe { w.bits(txpin.get_id() as u32) });
+            context.uart.pselrxd
+                .write(|w| unsafe { w.bits(rxpin.get_id() as u32) });
+            context.uart.baudrate.write(|w| w.baudrate().variant(speed));
+            context.uart.intenset.write(|w| w.rxdrdy().set().txdrdy().set());
+            context.uart.enable.write(|w| w.enable().enabled());
+
+            context.uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
+            context.uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
+
+            context.nvic.enable(Interrupt::UART0);
+        });
+
+        (Tx { _marker: PhantomData }, Rx { _marker: PhantomData })
     }
 
     #[doc(hidden)]
@@ -128,7 +147,30 @@ impl<'a> Uart<'a> {
     }
 }
 
-impl<'a> io::Read for Rx<'a> {
+impl<'b> Drop for Uart<'b> {
+    fn drop(&mut self) {
+        free(|c| {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            let context = context.as_mut().unwrap();
+
+            context.nvic.disable(Interrupt::UART0);
+
+            context.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+            context.uart.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+            context.uart.enable.write(|w| w.enable().disabled());
+            context.uart.intenclr.write(|w| w.rxdrdy().clear().txdrdy().clear());
+
+            context.uart.pseltxd.reset();
+            context.uart.pselrxd.reset();
+            context.uart.baudrate.reset();
+
+            CONTEXT.borrow(c).replace(None);
+        });
+    }
+}
+
+impl<'a, 'b: 'a> io::Read for Rx<'a, 'b> {
     type Error = !;
 
     fn poll_read(
@@ -156,7 +198,7 @@ impl<'a> io::Read for Rx<'a> {
     }
 }
 
-impl<'a> io::Write for Tx<'a> {
+impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
     type Error = !;
 
     fn poll_write(
