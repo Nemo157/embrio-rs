@@ -12,9 +12,7 @@ use embrio_nrf51::{EmbrioNrf51, uart::BAUDRATEW, interrupts};
 
 entry!(main);
 fn main() -> ! {
-    let mut core_peripherals = nrf51::CorePeripherals::take().unwrap();
-    let mut peripherals = nrf51::Peripherals::take().unwrap();
-    let mut nrf51 = EmbrioNrf51::new(&mut core_peripherals, &mut peripherals);
+    let mut nrf51 = EmbrioNrf51::take().unwrap();
     let mut txpin = nrf51.pins.9.output().push_pull();
     let mut rxpin = nrf51.pins.11.input().floating();
     let (tx, rx) = nrf51.uart.init(&mut txpin, &mut rxpin, BAUDRATEW::BAUD115200);

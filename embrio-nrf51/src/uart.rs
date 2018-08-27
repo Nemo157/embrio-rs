@@ -69,7 +69,9 @@ impl<'b> Uart<'b> {
         nvic: &'b mut NVIC,
     ) -> Self {
         free(|c| {
-            CONTEXT.borrow(c).replace(Some(Context {
+            let mut context = CONTEXT.borrow(c).borrow_mut();
+            assert!(context.is_none());
+            context.replace(Context {
                 uart: unsafe { erase_lifetime(uart) },
                 nvic: unsafe { erase_lifetime(nvic) },
                 events: Events {
@@ -83,7 +85,7 @@ impl<'b> Uart<'b> {
                     to_send: 0,
                     sent: 0,
                 }
-            }));
+            });
         });
 
         Uart { _marker: PhantomData }
@@ -150,8 +152,7 @@ impl<'b> Uart<'b> {
 impl<'b> Drop for Uart<'b> {
     fn drop(&mut self) {
         free(|c| {
-            let mut context = CONTEXT.borrow(c).borrow_mut();
-            let context = context.as_mut().unwrap();
+            let context = CONTEXT.borrow(c).borrow_mut().take().unwrap();
 
             context.nvic.disable(Interrupt::UART0);
 
@@ -164,8 +165,6 @@ impl<'b> Drop for Uart<'b> {
             context.uart.pseltxd.reset();
             context.uart.pselrxd.reset();
             context.uart.baudrate.reset();
-
-            CONTEXT.borrow(c).replace(None);
         });
     }
 }
