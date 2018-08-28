@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(
     arbitrary_self_types,
-    async_await,
     const_fn,
     futures_api,
     generator_trait,
@@ -20,7 +19,7 @@ pub struct Error;
 
 static mut TASK_CONTEXT: Option<NonNull<task::Context>> = None;
 
-macro_rules! await {
+macro_rules! aweight {
     ($e:expr) => {{
         let mut pinned = $e;
         loop {
@@ -82,20 +81,20 @@ fn run(input: impl Read, output: impl Write) -> impl Future<Output = Result<(), 
         pin_mut!(input);
         let mut buffer = [0; 64];
         loop {
-            await!(io::write_all(output.reborrow(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
-            await!(io::flush(output.reborrow())).map_err(|_| Error)?;
-            match await!(io::read_until(input.reborrow(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
+            aweight!(io::write_all(output.reborrow(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
+            aweight!(io::flush(output.reborrow())).map_err(|_| Error)?;
+            match aweight!(io::read_until(input.reborrow(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
                 Ok(amount) => {
                     if amount == 0 {
-                        await!(io::write_all(output.reborrow(), b"\n")).map_err(|_| Error)?;
+                        aweight!(io::write_all(output.reborrow(), b"\n")).map_err(|_| Error)?;
                         return Ok(());
                     }
-                    await!(io::write_all(output.reborrow(), "Hi ")).map_err(|_| Error)?;
-                    await!(io::write_all(output.reborrow(), &buffer[..(amount - 1)])).map_err(|_| Error)?;
-                    await!(io::write_all(output.reborrow(), " 👋 \n\n")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.reborrow(), "Hi ")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.reborrow(), &buffer[..(amount - 1)])).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.reborrow(), " 👋 \n\n")).map_err(|_| Error)?;
                 }
                 Err(_) => {
-                    await!(io::write_all(output.reborrow(), "\nSorry, that's a bit long for me 😭\n\n")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.reborrow(), "\nSorry, that's a bit long for me 😭\n\n")).map_err(|_| Error)?;
                 }
             }
         }
