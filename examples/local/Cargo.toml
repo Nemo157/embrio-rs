@@ -2,10 +2,14 @@ cargo-features = ["edition"]
 
 [package]
 name = "local"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 publish = false
+
+[[bin]]
+name = "hello"
+doc = false
 
 [dependencies]
 hello = { path = "../apps/hello" }
