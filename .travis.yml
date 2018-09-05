@@ -30,6 +30,7 @@ matrix:
   - name: clippy
     install:
     - rustup component add clippy-preview
+    - rustup target add thumbv6m-none-eabi
     script:
     - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 -- -Dwarnings
     - cargo clippy --target thumbv6m-none-eabi -p embrio-nrf51 -p pca10031 -- -Dwarnings
