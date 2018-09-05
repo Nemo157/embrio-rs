@@ -1,4 +1,4 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 use crate::io::Write;
 use futures_core::{task, Poll};
 

@@ -1,4 +1,4 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 use super::Read;
 

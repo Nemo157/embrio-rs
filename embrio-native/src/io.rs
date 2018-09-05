@@ -1,6 +1,6 @@
 use std::io as stdio;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use embrio_core::io as embrio;
 use futures_core::{task, Poll};
 

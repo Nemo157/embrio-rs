@@ -10,7 +10,7 @@
     pin,
 )]
 
-use core::{future::Future, task::{self, Poll}, ptr::NonNull, mem::PinMut, ops::{Generator, GeneratorState}, cell::UnsafeCell};
+use core::{future::Future, task::{self, Poll}, ptr::NonNull, pin::PinMut, ops::{Generator, GeneratorState}, cell::UnsafeCell};
 use embrio::io::{self, Read, Write, BufReader};
 use pin_utils::pin_mut;
 

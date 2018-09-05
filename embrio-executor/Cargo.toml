@@ -6,15 +6,16 @@ version = "0.1.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
-[dependencies]
-pin-utils = { version = "0.1.0-alpha.1", default-features = false }
+[dependencies.pin-utils]
+version = "0.1.0-alpha.2"
+default-features = false
 
 [dependencies.futures-core-preview]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+version = "0.3.0-alpha.5"
 default-features = false
 
 [dependencies.futures-util-preview]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+version = "0.3.0-alpha.5"
 default-features = false
 features = ["nightly"]
 

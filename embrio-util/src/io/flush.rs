@@ -1,4 +1,4 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 use futures_core::future::Future;
 use futures_util::future::poll_fn;

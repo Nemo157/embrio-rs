@@ -7,7 +7,7 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.5.3"
+cortex-m = "0.5.6"
 nrf51 = "0.5.0"
 
 [dependencies.embrio-core]
@@ -17,18 +17,10 @@ path = "../embrio-core"
 path = "../embrio-executor"
 
 [dependencies.futures-core-preview]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+version = "0.3.0-alpha.5"
 default-features = false
 
 [dependencies.futures-util-preview]
-git = "https://github.com/rust-lang-nursery/futures-rs"
+version = "0.3.0-alpha.5"
 default-features = false
 features = ["nightly"]
-
-[features]
-default = []
-
-# https://github.com/japaric/bare-metal/pull/10
-[patch.crates-io.bare-metal]
-git = "https://github.com/Nemo157/bare-metal"
-branch = "remove-old-feature"

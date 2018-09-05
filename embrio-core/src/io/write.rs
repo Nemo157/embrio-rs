@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use core::{cmp, mem, mem::PinMut};
+use core::{cmp, mem, pin::PinMut};
 
 use futures_core::{task, Poll};
 

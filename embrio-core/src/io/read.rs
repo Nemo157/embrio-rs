@@ -1,6 +1,6 @@
 use core::cmp;
 use core::fmt::Debug;
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 use futures_core::{task, Poll};
 

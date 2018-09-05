@@ -1,4 +1,4 @@
-use core::{cmp, mem::PinMut, cell::RefCell, marker::PhantomData};
+use core::{cmp, pin::PinMut, cell::RefCell, marker::PhantomData};
 use futures_core::task::{self, Poll, Waker};
 use embrio_core::io;
 use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};

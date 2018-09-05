@@ -1,4 +1,4 @@
-use core::{mem::PinMut, time::Duration, cell::RefCell};
+use core::{pin::PinMut, time::Duration, cell::RefCell};
 use futures_core::{task::{self, Poll, Waker}, future::Future, stream::Stream};
 use nrf51::{TIMER1, Interrupt};
 use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};

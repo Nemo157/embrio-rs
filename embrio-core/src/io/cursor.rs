@@ -1,7 +1,7 @@
 use core::cmp;
 use core::fmt;
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 use futures_core::{task, Poll};
 
