@@ -18,24 +18,14 @@ pub mod gpio;
 pub mod timer;
 pub mod uart;
 
+use core::{cell::UnsafeCell, ptr};
+
+use cortex_m::interrupt::{free, Mutex};
+
+use self::{gpio::Pins, uart::Uart};
+
 #[doc(hidden)]
 pub use nrf51::interrupt;
-
-/// This **MUST** be called in any binary that depends on this crate, for some
-/// reason linking the interrupt handlers in when they're defined in a
-/// dependency doesn't work.
-#[macro_export]
-macro_rules! interrupts {
-    () => {
-        $crate::interrupt!(UART0, $crate::uart::Uart::interrupt);
-        $crate::interrupt!(TIMER0, $crate::timer::Timer::<nrf51::TIMER0>::interrupt);
-        $crate::interrupt!(TIMER1, $crate::timer::Timer::<nrf51::TIMER1>::interrupt);
-    }
-}
-
-use core::{cell::UnsafeCell, ptr};
-use cortex_m::interrupt::{free, Mutex};
-use self::{gpio::Pins, uart::Uart};
 
 pub struct EmbrioNrf51<'b> {
     pub pins: Pins<'b>,
@@ -103,4 +93,22 @@ impl<'b> EmbrioNrf51<'b> {
             Some(EmbrioNrf51::new(cortex_m, nrf51))
         })
     }
+}
+
+/// This **MUST** be called in any binary that depends on this crate, for some
+/// reason linking the interrupt handlers in when they're defined in a
+/// dependency doesn't work.
+#[macro_export]
+macro_rules! interrupts {
+    () => {
+        $crate::interrupt!(UART0, $crate::uart::Uart::interrupt);
+        $crate::interrupt!(
+            TIMER0,
+            $crate::timer::Timer::<nrf51::TIMER0>::interrupt
+        );
+        $crate::interrupt!(
+            TIMER1,
+            $crate::timer::Timer::<nrf51::TIMER1>::interrupt
+        );
+    };
 }

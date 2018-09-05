@@ -10,8 +10,16 @@
     pin,
 )]
 
-use core::{future::Future, task::{self, Poll}, ptr::NonNull, pin::PinMut, ops::{Generator, GeneratorState}, cell::UnsafeCell};
-use embrio::io::{self, Read, Write, BufReader};
+use core::{
+    cell::UnsafeCell,
+    future::Future,
+    ops::{Generator, GeneratorState},
+    pin::PinMut,
+    ptr::NonNull,
+    task::{self, Poll},
+};
+
+use embrio::io::{self, BufReader, Read, Write};
 use pin_utils::pin_mut;
 
 #[derive(Debug)]
@@ -38,7 +46,7 @@ macro_rules! aweight {
             }
             yield
         }
-    }}
+    }};
 }
 
 macro_rules! asink {
@@ -74,7 +82,10 @@ macro_rules! asink {
     }}
 }
 
-fn run(input: impl Read, output: impl Write) -> impl Future<Output = Result<(), Error>> {
+fn run(
+    input: impl Read,
+    output: impl Write,
+) -> impl Future<Output = Result<(), Error>> {
     asink! {
         pin_mut!(output);
         let input = BufReader::new(input, [0; 32]);
@@ -107,10 +118,15 @@ fn run(input: impl Read, output: impl Write) -> impl Future<Output = Result<(), 
 pub unsafe fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
     struct Unsync<T>(UnsafeCell<T>);
     impl<T> Unsync<T> {
-        const fn new(value: T) -> Self { Unsync(UnsafeCell::new(value)) }
-        unsafe fn get_mut_unchecked(&self) -> &mut T { &mut *self.0.get() }
+        const fn new(value: T) -> Self {
+            Unsync(UnsafeCell::new(value))
+        }
+        unsafe fn get_mut_unchecked(&self) -> &mut T {
+            &mut *self.0.get()
+        }
     }
     unsafe impl<T> Sync for Unsync<T> {}
-    static EXECUTOR: Unsync<embrio::Executor> = Unsync::new(embrio::Executor::new());
+    static EXECUTOR: Unsync<embrio::Executor> =
+        Unsync::new(embrio::Executor::new());
     EXECUTOR.get_mut_unchecked().block_on(run(input, output))
 }

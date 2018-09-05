@@ -10,11 +10,17 @@ pub struct EmbrioWaker {
 
 impl EmbrioWaker {
     pub(crate) const fn new() -> Self {
-        EmbrioWaker { woken: AtomicBool::new(false) }
+        EmbrioWaker {
+            woken: AtomicBool::new(false),
+        }
     }
 
     pub(crate) fn local_waker(&'static self) -> LocalWaker {
-        unsafe { LocalWaker::new(NonNull::new_unchecked(&self as &UnsafeWake as *const _ as *mut _)) }
+        unsafe {
+            LocalWaker::new(NonNull::new_unchecked(
+                &self as &UnsafeWake as *const _ as *mut _,
+            ))
+        }
     }
 
     pub(crate) fn test_and_clear(&self) -> bool {
@@ -28,11 +34,12 @@ impl EmbrioWaker {
 
 unsafe impl UnsafeWake for &'static EmbrioWaker {
     unsafe fn clone_raw(&self) -> Waker {
-        Waker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
+        Waker::new(NonNull::new_unchecked(
+            self as &UnsafeWake as *const _ as *mut _,
+        ))
     }
 
-    unsafe fn drop_raw(&self) {
-    }
+    unsafe fn drop_raw(&self) {}
 
     unsafe fn wake(&self) {
         self.woken.store(true, Ordering::Release);

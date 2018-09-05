@@ -1,8 +1,7 @@
 use core::pin::PinMut;
 
-use futures_core::future::Future;
-use futures_core::task::Poll;
-use futures_util::{ready, future::poll_fn};
+use futures_core::{future::Future, task::Poll};
+use futures_util::{future::poll_fn, ready};
 
 use embrio_core::io::Read;
 
@@ -26,7 +25,8 @@ pub fn read_exact<'a, R: Read + 'a>(
     poll_fn(move |cx| {
         let buf = buf.as_mut();
         while position < buf.len() {
-            let amount = ready!(this.reborrow().poll_read(cx, &mut buf[position..]))?;
+            let amount =
+                ready!(this.reborrow().poll_read(cx, &mut buf[position..]))?;
             position += amount;
             if amount == 0 {
                 Err(Error::UnexpectedEof)?;

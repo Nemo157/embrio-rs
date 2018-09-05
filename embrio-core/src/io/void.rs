@@ -1,6 +1,9 @@
-use core::pin::PinMut;
+use core::{
+    pin::PinMut,
+    task::{self, Poll},
+};
+
 use crate::io::Write;
-use futures_core::{task, Poll};
 
 pub struct Void {
     _marker: (),

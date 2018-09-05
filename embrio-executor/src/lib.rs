@@ -13,6 +13,4 @@ mod executor;
 mod spawn;
 mod waker;
 
-pub use self::{
-    executor::Executor, waker::EmbrioWaker,
-};
+pub use self::{executor::Executor, waker::EmbrioWaker};

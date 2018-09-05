@@ -1,8 +1,4 @@
-use core::fmt;
-use core::intrinsics;
-use core::marker::PhantomData;
-use core::mem;
-use core::ops::Deref;
+use core::{fmt, intrinsics, marker::PhantomData, mem, ops::Deref};
 
 pub struct ZstRef<'a, T: 'a> {
     marker: PhantomData<&'a T>,

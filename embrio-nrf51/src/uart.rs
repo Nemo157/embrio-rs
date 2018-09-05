@@ -1,40 +1,38 @@
-use core::{cmp, pin::PinMut, cell::RefCell, marker::PhantomData};
-use futures_core::task::{self, Poll, Waker};
-use embrio_core::io;
-use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};
-use nrf51::{UART0, Interrupt};
+use core::{
+    cell::RefCell,
+    cmp,
+    marker::PhantomData,
+    pin::PinMut,
+    task::{self, Poll, Waker},
+};
 
-use crate::{
-    gpio::{
-        mode::{Floating, Input, Output, PushPull},
-        Pin,
-    },
+use cortex_m::{
+    interrupt::{free, Mutex},
+    peripheral::NVIC,
+};
+use embrio_core::io;
+use nrf51::{Interrupt, UART0};
+
+use crate::gpio::{
+    mode::{Floating, Input, Output, PushPull},
+    Pin,
 };
 
 pub use nrf51::uart0::baudrate::BAUDRATEW;
 
 #[derive(Debug)]
 pub struct Uart<'b> {
-    _marker: PhantomData<(
-        &'b mut UART0,
-        &'b mut NVIC,
-    )>,
+    _marker: PhantomData<(&'b mut UART0, &'b mut NVIC)>,
 }
 
 #[derive(Debug)]
 pub struct Tx<'a, 'b: 'a> {
-    _marker: PhantomData<(
-        &'a mut Uart<'b>,
-        &'a mut Pin<'b, Output<PushPull>>,
-    )>,
+    _marker: PhantomData<(&'a mut Uart<'b>, &'a mut Pin<'b, Output<PushPull>>)>,
 }
 
 #[derive(Debug)]
 pub struct Rx<'a, 'b: 'a> {
-    _marker: PhantomData<(
-        &'a mut Uart<'b>,
-        &'a mut Pin<'b, Input<Floating>>,
-    )>,
+    _marker: PhantomData<(&'a mut Uart<'b>, &'a mut Pin<'b, Input<Floating>>)>,
 }
 
 struct Events {
@@ -57,17 +55,15 @@ struct Context {
     tx: TxContext,
 }
 
-static CONTEXT: Mutex<RefCell<Option<Context>>> = Mutex::new(RefCell::new(None));
+static CONTEXT: Mutex<RefCell<Option<Context>>> =
+    Mutex::new(RefCell::new(None));
 
 unsafe fn erase_lifetime<'a, T>(t: &'a mut T) -> &'static mut T {
     &mut *(t as *mut T)
 }
 
 impl<'b> Uart<'b> {
-    pub(crate) fn new(
-        uart: &'b mut UART0,
-        nvic: &'b mut NVIC,
-    ) -> Self {
+    pub(crate) fn new(uart: &'b mut UART0, nvic: &'b mut NVIC) -> Self {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             assert!(context.is_none());
@@ -84,11 +80,13 @@ impl<'b> Uart<'b> {
                     buffer: [0; 8],
                     to_send: 0,
                     sent: 0,
-                }
+                },
             });
         });
 
-        Uart { _marker: PhantomData }
+        Uart {
+            _marker: PhantomData,
+        }
     }
 
     pub fn init<'a>(
@@ -96,18 +94,28 @@ impl<'b> Uart<'b> {
         txpin: &'a mut Pin<'b, Output<PushPull>>,
         rxpin: &'a mut Pin<'b, Input<Floating>>,
         speed: BAUDRATEW,
-    ) -> (Tx<'a, 'b>, Rx<'a, 'b>) where 'b: 'a {
+    ) -> (Tx<'a, 'b>, Rx<'a, 'b>)
+    where
+        'b: 'a,
+    {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             let context = context.as_mut().unwrap();
 
             context.uart.txd.write(|w| unsafe { w.bits(0) });
-            context.uart.pseltxd
+            context
+                .uart
+                .pseltxd
                 .write(|w| unsafe { w.bits(txpin.get_id() as u32) });
-            context.uart.pselrxd
+            context
+                .uart
+                .pselrxd
                 .write(|w| unsafe { w.bits(rxpin.get_id() as u32) });
             context.uart.baudrate.write(|w| w.baudrate().variant(speed));
-            context.uart.intenset.write(|w| w.rxdrdy().set().txdrdy().set());
+            context
+                .uart
+                .intenset
+                .write(|w| w.rxdrdy().set().txdrdy().set());
             context.uart.enable.write(|w| w.enable().enabled());
 
             context.uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
@@ -116,7 +124,14 @@ impl<'b> Uart<'b> {
             context.nvic.enable(Interrupt::UART0);
         });
 
-        (Tx { _marker: PhantomData }, Rx { _marker: PhantomData })
+        (
+            Tx {
+                _marker: PhantomData,
+            },
+            Rx {
+                _marker: PhantomData,
+            },
+        )
     }
 
     #[doc(hidden)]
@@ -160,7 +175,10 @@ impl<'b> Drop for Uart<'b> {
             context.uart.tasks_stoprx.write(|w| unsafe { w.bits(1) });
 
             context.uart.enable.write(|w| w.enable().disabled());
-            context.uart.intenclr.write(|w| w.rxdrdy().clear().txdrdy().clear());
+            context
+                .uart
+                .intenclr
+                .write(|w| w.rxdrdy().clear().txdrdy().clear());
 
             context.uart.pseltxd.reset();
             context.uart.pselrxd.reset();
@@ -217,7 +235,8 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.events.txdrdy = false;
                 context.tx.to_send = length as u8;
                 context.tx.sent = 0;
-                context.tx.buffer[..length].copy_from_slice(&buf[1..length + 1]);
+                context.tx.buffer[..length]
+                    .copy_from_slice(&buf[1..length + 1]);
                 context.tx.waker = None;
                 context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
                 Poll::Ready(Ok(length + 1))

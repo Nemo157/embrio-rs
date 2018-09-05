@@ -1,8 +1,8 @@
 use core::pin::PinMut;
 
-use super::Read;
-
 use futures_core::{task, Poll};
+
+use super::Read;
 
 pub trait BufRead: Read {
     fn poll_fill_buf<'a>(

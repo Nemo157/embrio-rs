@@ -1,11 +1,22 @@
-use core::{pin::PinMut, time::Duration, cell::RefCell};
-use futures_core::{task::{self, Poll, Waker}, future::Future, stream::Stream};
-use nrf51::{TIMER1, Interrupt};
-use cortex_m::{peripheral::NVIC, interrupt::{free, Mutex}};
+use core::{
+    cell::RefCell,
+    future::Future,
+    pin::PinMut,
+    task::{self, Poll, Waker},
+    time::Duration,
+};
+
+use cortex_m::{
+    interrupt::{free, Mutex},
+    peripheral::NVIC,
+};
+use futures_core::stream::Stream;
+use nrf51::{Interrupt, TIMER1};
 
 use super::{Interval, Timeout, Timer};
 
-static TIMER1_WAKER: Mutex<RefCell<Option<Waker>>> = Mutex::new(RefCell::new(None));
+static TIMER1_WAKER: Mutex<RefCell<Option<Waker>>> =
+    Mutex::new(RefCell::new(None));
 
 impl Timer<TIMER1> {
     pub fn timer1(timer: TIMER1, nvic: &mut NVIC) -> Timer<TIMER1> {

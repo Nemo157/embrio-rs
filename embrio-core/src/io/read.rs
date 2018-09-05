@@ -1,8 +1,9 @@
-use core::cmp;
-use core::fmt::Debug;
-use core::pin::PinMut;
-
-use futures_core::{task, Poll};
+use core::{
+    cmp,
+    fmt::Debug,
+    pin::PinMut,
+    task::{self, Poll},
+};
 
 pub trait Read {
     type Error: Debug;
@@ -14,7 +15,10 @@ pub trait Read {
     ) -> Poll<Result<usize, Self::Error>>;
 }
 
-impl<R> Read for PinMut<'_, R> where R: Read {
+impl<R> Read for PinMut<'_, R>
+where
+    R: Read,
+{
     type Error = <R as Read>::Error;
 
     fn poll_read(

@@ -1,7 +1,4 @@
-use core::cmp;
-use core::fmt;
-use core::marker::Unpin;
-use core::pin::PinMut;
+use core::{cmp, fmt, marker::Unpin, pin::PinMut};
 
 use futures_core::{task, Poll};
 

@@ -1,5 +1,6 @@
-use core::time::Duration;
-use futures_core::{future::Future, stream::Stream};
+use core::{future::Future, time::Duration};
+
+use futures_core::stream::Stream;
 
 pub trait Timer: Sized {
     type Error;

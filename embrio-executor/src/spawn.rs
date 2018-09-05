@@ -1,4 +1,4 @@
-use futures_core::{
+use core::{
     future::FutureObj,
     task::{Spawn, SpawnObjError},
 };

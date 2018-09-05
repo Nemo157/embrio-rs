@@ -1,9 +1,9 @@
-pub mod mode;
-mod pin;
-
 use nrf51::GPIO;
 
 pub use self::pin::Pin;
+
+pub mod mode;
+mod pin;
 
 macro_rules! pin {
     ($s:expr) => {

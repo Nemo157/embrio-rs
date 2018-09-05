@@ -1,9 +1,7 @@
-use core::pin::PinMut;
-
-use futures_core::future::Future;
-use futures_util::future::poll_fn;
+use core::{future::Future, pin::PinMut};
 
 use embrio_core::io::Write;
+use futures_util::future::poll_fn;
 
 pub fn close<W: Write>(
     mut this: PinMut<'_, W>,

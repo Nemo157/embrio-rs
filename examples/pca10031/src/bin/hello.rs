@@ -1,24 +1,25 @@
 #![no_std]
 #![no_main]
-
 #![feature(underscore_imports)]
 
 // Link only imports, for panic implementation and interrupt vectors
-#[allow(unused_imports)] // https://github.com/rust-lang/rust/issues/53128#issuecomment-414117024
-use { panic_abort as _, nrf51 as _ };
+// TODO: https://github.com/rust-lang/rust/issues/53128#issuecomment-414117024
+#[allow(unused_imports)]
+use {nrf51 as _, panic_abort as _};
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
-use embrio_nrf51::{EmbrioNrf51, uart::BAUDRATEW, interrupts};
+use embrio_nrf51::{interrupts, uart::BAUDRATEW, EmbrioNrf51};
 
 entry!(main);
 fn main() -> ! {
     let mut nrf51 = EmbrioNrf51::take().unwrap();
     let mut txpin = nrf51.pins.9.output().push_pull();
     let mut rxpin = nrf51.pins.11.input().floating();
-    let (tx, rx) = nrf51.uart.init(&mut txpin, &mut rxpin, BAUDRATEW::BAUD115200);
-    unsafe {
-        hello::main(rx, tx)
-    }.unwrap();
+    let (tx, rx) =
+        nrf51
+            .uart
+            .init(&mut txpin, &mut rxpin, BAUDRATEW::BAUD115200);
+    unsafe { hello::main(rx, tx) }.unwrap();
     unreachable!()
 }
 

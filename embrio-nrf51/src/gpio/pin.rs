@@ -1,9 +1,11 @@
+use nrf51::GPIO;
+
+use crate::zst_ref::ZstRef;
+
 use super::mode::{
     Disabled, Floating, Input, OpenDrain, Output, OutputMode, PinMode,
     PullDown, PullUp, PushPull, Unconfigured,
 };
-use crate::zst_ref::ZstRef;
-use nrf51::GPIO;
 
 #[derive(Debug)]
 pub struct Pin<'a, Mode> {

@@ -3,6 +3,7 @@ use core::{
     ptr::NonNull,
     task::{LocalWaker, UnsafeWake, Waker},
 };
+
 use cortex_m::interrupt::{self, Mutex};
 
 pub struct EmbrioWaker {
@@ -11,11 +12,17 @@ pub struct EmbrioWaker {
 
 impl EmbrioWaker {
     pub(crate) const fn new() -> Self {
-        EmbrioWaker { woken: Mutex::new(UnsafeCell::new(false)) }
+        EmbrioWaker {
+            woken: Mutex::new(UnsafeCell::new(false)),
+        }
     }
 
     pub(crate) fn local_waker(&'static self) -> LocalWaker {
-        unsafe { LocalWaker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _)) }
+        unsafe {
+            LocalWaker::new(NonNull::new_unchecked(
+                self as &UnsafeWake as *const _ as *mut _,
+            ))
+        }
     }
 
     pub(crate) fn test_and_clear(&self) -> bool {
@@ -34,11 +41,12 @@ impl EmbrioWaker {
 
 unsafe impl UnsafeWake for EmbrioWaker {
     unsafe fn clone_raw(&self) -> Waker {
-        Waker::new(NonNull::new_unchecked(self as &UnsafeWake as *const _ as *mut _))
+        Waker::new(NonNull::new_unchecked(
+            self as &UnsafeWake as *const _ as *mut _,
+        ))
     }
 
-    unsafe fn drop_raw(&self) {
-    }
+    unsafe fn drop_raw(&self) {}
 
     unsafe fn wake(&self) {
         interrupt::free(|cs| {

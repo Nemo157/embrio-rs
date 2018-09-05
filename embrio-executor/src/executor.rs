@@ -1,6 +1,11 @@
-use crate::{spawn::NoSpawn, EmbrioWaker};
-use futures_core::{task::Context, Future, Poll};
+use core::{
+    future::Future,
+    task::{Context, Poll},
+};
+
 use pin_utils::pin_mut;
+
+use crate::{spawn::NoSpawn, EmbrioWaker};
 
 pub struct Executor {
     waker: EmbrioWaker,
@@ -8,7 +13,9 @@ pub struct Executor {
 
 impl Executor {
     pub const fn new() -> Executor {
-        Executor { waker: EmbrioWaker::new() }
+        Executor {
+            waker: EmbrioWaker::new(),
+        }
     }
 
     pub fn block_on<F: Future>(&'static mut self, future: F) -> F::Output {

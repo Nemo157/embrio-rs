@@ -1,7 +1,10 @@
-use core::fmt::Debug;
-use core::{cmp, mem, pin::PinMut};
-
-use futures_core::{task, Poll};
+use core::{
+    cmp,
+    fmt::Debug,
+    mem,
+    pin::PinMut,
+    task::{self, Poll},
+};
 
 pub trait Write {
     type Error: Debug;
@@ -23,7 +26,10 @@ pub trait Write {
     ) -> Poll<Result<(), Self::Error>>;
 }
 
-impl<W> Write for PinMut<'_, W> where W: Write {
+impl<W> Write for PinMut<'_, W>
+where
+    W: Write,
+{
     type Error = <W as Write>::Error;
 
     fn poll_write(
