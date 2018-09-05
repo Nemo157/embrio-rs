@@ -235,8 +235,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.events.txdrdy = false;
                 context.tx.to_send = length as u8;
                 context.tx.sent = 0;
-                context.tx.buffer[..length]
-                    .copy_from_slice(&buf[1..length + 1]);
+                context.tx.buffer[..length].copy_from_slice(&buf[1..=length]);
                 context.tx.waker = None;
                 context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
                 Poll::Ready(Ok(length + 1))

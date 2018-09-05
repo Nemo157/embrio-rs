@@ -8,6 +8,7 @@
     never_type,
     option_replace,
     pin,
+    tool_lints,
 )]
 
 use core::{
@@ -63,6 +64,7 @@ macro_rules! asink {
                 // Safety: Not much, probably safe because of the restriction on
                 // `main`, but I can't be bothered guaranteeing that. Should
                 // work in the current examples.
+                #[allow(clippy::cast_ptr_alignment)]
                 unsafe {
                     assert!(TASK_CONTEXT.replace(NonNull::new_unchecked(cx as *mut task::Context as *mut () as *mut task::Context<'static>)).is_none());
                     let poll = match PinMut::get_mut_unchecked(self).0.resume() {
@@ -121,6 +123,7 @@ pub unsafe fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
         const fn new(value: T) -> Self {
             Unsync(UnsafeCell::new(value))
         }
+        #[allow(clippy::mut_from_ref)]
         unsafe fn get_mut_unchecked(&self) -> &mut T {
             &mut *self.0.get()
         }

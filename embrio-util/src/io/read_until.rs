@@ -17,8 +17,8 @@ pub fn read_until<'a, R: BufRead + 'a>(
                 let available = ready!(this.reborrow().poll_fill_buf(cx))?;
                 let limit = cmp::min(available.len(), buf.len() - position);
                 if let Some(i) = memchr::memchr(byte, &available[..limit]) {
-                    buf[position..position + i + 1]
-                        .copy_from_slice(&available[..i + 1]);
+                    buf[position..=position + i]
+                        .copy_from_slice(&available[..=i]);
                     (true, i + 1)
                 } else {
                     buf[position..(position + limit)]
@@ -32,6 +32,6 @@ pub fn read_until<'a, R: BufRead + 'a>(
                 return Poll::Ready(Ok(Ok(position)));
             }
         }
-        return Poll::Ready(Ok(Err(buf.len())));
+        Poll::Ready(Ok(Err(buf.len())))
     })
 }

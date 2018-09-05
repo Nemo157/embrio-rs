@@ -52,14 +52,10 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
         } = unsafe { PinMut::get_mut_unchecked(self) };
         let mut reader = unsafe { PinMut::new_unchecked(reader) };
         let buffer = buffer.as_mut();
-        loop {
-            if let Poll::Ready(amount) =
-                reader.reborrow().poll_read(cx, &mut buffer[*right..])?
-            {
-                *right += amount;
-            } else {
-                break;
-            }
+        if let Poll::Ready(amount) =
+            reader.reborrow().poll_read(cx, &mut buffer[*right..])?
+        {
+            *right += amount;
             return Poll::Ready(Ok(&buffer[*left..*right]));
         }
         if *left == *right {
