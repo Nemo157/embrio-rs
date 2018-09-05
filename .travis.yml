@@ -15,7 +15,7 @@ script:
 - cargo test -p embrio-core
 - cargo test -p embrio-executor
 - cargo test -p embrio-native
-- cargo test -p embrio-utils
+- cargo test -p embrio-util
 - cargo build -p native --all-targets
 - rustup target add thumbv6m-none-eabi
 - cargo build --target thumbv6m-none-eabi -p embrio-nrf51
