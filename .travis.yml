@@ -1,0 +1,40 @@
+language: rust
+sudo: false
+cache: cargo
+
+rust:
+- nightly
+- nightly-2018-09-04
+
+os:
+- linux
+- osx
+
+script:
+- cargo test -p embrio
+- cargo test -p embrio-core
+- cargo test -p embrio-executor
+- cargo test -p embrio-native
+- cargo test -p embrio-utils
+- cargo build -p native --all-targets
+- rustup target add thumbv6m-none-eabi
+- cargo build --target thumbv6m-none-eabi -p embrio-nrf51
+- cargo build --target thumbv6m-none-eabi -p pca10031 --all-targets
+
+matrix:
+  include:
+  - name: rustfmt
+    install:
+    - rustup component add rustfmt-preview
+    script:
+    - cargo fmt --all -- --check
+
+  - name: clippy
+    install:
+    - rustup component add clippy-preview
+    script:
+    - cargo clippy --all -- -Dwarnings
+
+  - name: doc
+    script:
+    - RUSTDOCFLAGS=-Dwarnings cargo doc --all
