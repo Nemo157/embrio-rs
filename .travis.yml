@@ -38,4 +38,4 @@ matrix:
 
   - name: doc
     script:
-    - RUSTDOCFLAGS=-Dwarnings cargo doc --all --all-features --no-deps
+    - cargo doc --all --all-features --no-deps
