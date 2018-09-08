@@ -10,7 +10,7 @@ use {nrf51 as _, panic_abort as _};
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 use embrio_nrf51::{interrupts, uart::BAUDRATEW, EmbrioNrf51};
 
-entry!(main);
+#[entry]
 fn main() -> ! {
     let mut nrf51 = EmbrioNrf51::take().unwrap();
     let mut txpin = nrf51.pins.9.output().push_pull();
@@ -23,13 +23,13 @@ fn main() -> ! {
     unreachable!()
 }
 
-exception!(HardFault, hard_fault);
-fn hard_fault(ef: &ExceptionFrame) -> ! {
+#[exception]
+fn HardFault(ef: &ExceptionFrame) -> ! {
     panic!("HardFault at {:#?}", ef);
 }
 
-exception!(*, default_handler);
-fn default_handler(irqn: i16) {
+#[exception]
+fn DefaultHandler(irqn: i16) {
     panic!("Unhandled exception (IRQn = {})", irqn);
 }
 
