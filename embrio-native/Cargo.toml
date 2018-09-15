@@ -10,5 +10,5 @@ edition = "2018"
 embrio-core = { path = "../embrio-core" }
 
 [dependencies.futures-core-preview]
-version = "0.3.0-alpha.5"
+version = "0.3.0-alpha.6"
 default-features = false
