@@ -5,19 +5,30 @@ use core::{
 
 use pin_utils::pin_mut;
 
-use crate::{spawn::NoSpawn, EmbrioWaker};
+use crate::{spawn::NoSpawn, waker::EmbrioWaker};
 
+/// A `no_std` compatible, allocation-less, single-threaded futures executor;
+/// targeted at supporting embedded use-cases.
+///
+/// See the [crate docs](crate) for more details.
 pub struct Executor {
     waker: EmbrioWaker,
 }
 
 impl Executor {
+    /// Create a new instance of [`Executor`].
+    ///
+    /// See the [crate docs](crate) for more details.
     pub const fn new() -> Executor {
         Executor {
             waker: EmbrioWaker::new(),
         }
     }
 
+    /// Block on a specific [`Future`] until it completes, returning its output
+    /// when it does.
+    ///
+    /// See the [crate docs](crate) for more details.
     pub fn block_on<F: Future>(&'static mut self, future: F) -> F::Output {
         pin_mut!(future);
 
