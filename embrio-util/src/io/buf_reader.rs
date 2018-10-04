@@ -1,5 +1,5 @@
 use core::{
-    pin::PinMut,
+    pin::Pin,
     task::{self, Poll},
 };
 
@@ -28,11 +28,11 @@ impl<R: Read, B: AsMut<[u8]>> Read for BufReader<R, B> {
     type Error = R::Error;
 
     fn poll_read(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        let available = ready!(self.poll_fill_buf(cx))?;
+        let available = ready!(self.poll_fill_buf(lw))?;
         buf.copy_from_slice(available);
         Poll::Ready(Ok(available.len()))
     }
@@ -40,8 +40,8 @@ impl<R: Read, B: AsMut<[u8]>> Read for BufReader<R, B> {
 
 impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
     fn poll_fill_buf<'a>(
-        self: PinMut<'a, Self>,
-        cx: &mut task::Context,
+        self: Pin<&'a mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<&'a [u8], Self::Error>> {
         // Safety: we re-wrap the only !Unpin field in a new PinMut
         let BufReader {
@@ -49,11 +49,11 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
             ref mut buffer,
             ref left,
             ref mut right,
-        } = unsafe { PinMut::get_mut_unchecked(self) };
-        let mut reader = unsafe { PinMut::new_unchecked(reader) };
+        } = unsafe { Pin::get_mut_unchecked(self) };
+        let reader = unsafe { Pin::new_unchecked(reader) };
         let buffer = buffer.as_mut();
         if let Poll::Ready(amount) =
-            reader.reborrow().poll_read(cx, &mut buffer[*right..])?
+            reader.poll_read(lw, &mut buffer[*right..])?
         {
             *right += amount;
             return Poll::Ready(Ok(&buffer[*left..*right]));
@@ -65,13 +65,13 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
         }
     }
 
-    fn consume(self: PinMut<'_, Self>, amount: usize) {
+    fn consume(self: Pin<&mut Self>, amount: usize) {
         // Safety: we only access unpin fields
         let BufReader {
             ref mut left,
             ref mut right,
             ..
-        } = unsafe { PinMut::get_mut_unchecked(self) };
+        } = unsafe { Pin::get_mut_unchecked(self) };
         assert!(amount <= *right - *left);
         *left += amount;
         if *left == *right {

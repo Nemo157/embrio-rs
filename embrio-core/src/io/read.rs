@@ -1,7 +1,7 @@
 use core::{
     cmp,
     fmt::Debug,
-    pin::PinMut,
+    pin::Pin,
     task::{self, Poll},
 };
 
@@ -9,24 +9,24 @@ pub trait Read {
     type Error: Debug;
 
     fn poll_read(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>>;
 }
 
-impl<R> Read for PinMut<'_, R>
+impl<R> Read for Pin<&mut R>
 where
     R: Read,
 {
     type Error = <R as Read>::Error;
 
     fn poll_read(
-        mut self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        <R as Read>::poll_read(PinMut::reborrow(&mut *self), cx, buf)
+        <R as Read>::poll_read(Pin::get_mut(self).as_mut(), lw, buf)
     }
 }
 
@@ -34,8 +34,8 @@ impl Read for &[u8] {
     type Error = !;
 
     fn poll_read(
-        mut self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = cmp::min(self.len(), buf.len());

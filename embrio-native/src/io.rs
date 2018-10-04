@@ -1,7 +1,7 @@
 use std::{
     io as stdio,
     marker::Unpin,
-    pin::PinMut,
+    pin::Pin,
     task::{self, Poll},
 };
 
@@ -13,11 +13,11 @@ impl<T: stdio::Read + Unpin> embrio::Read for Std<T> {
     type Error = stdio::Error;
 
     fn poll_read(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        Poll::Ready(PinMut::get_mut(self).0.read(buf))
+        Poll::Ready(Pin::get_mut(self).0.read(buf))
     }
 }
 
@@ -25,24 +25,24 @@ impl<T: stdio::Write + Unpin> embrio::Write for Std<T> {
     type Error = stdio::Error;
 
     fn poll_write(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        Poll::Ready(PinMut::get_mut(self).0.write(buf))
+        Poll::Ready(Pin::get_mut(self).0.write(buf))
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(PinMut::get_mut(self).0.flush())
+        Poll::Ready(Pin::get_mut(self).0.flush())
     }
 
     fn poll_close(
-        self: PinMut<Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
-        self.poll_flush(cx)
+        self.poll_flush(lw)
     }
 }

@@ -2,7 +2,7 @@ use core::{
     cmp,
     fmt::Debug,
     mem,
-    pin::PinMut,
+    pin::Pin,
     task::{self, Poll},
 };
 
@@ -10,48 +10,48 @@ pub trait Write {
     type Error: Debug;
 
     fn poll_write(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>>;
 
     fn poll_flush(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>>;
 
     fn poll_close(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>>;
 }
 
-impl<W> Write for PinMut<'_, W>
+impl<W> Write for Pin<&mut W>
 where
     W: Write,
 {
     type Error = <W as Write>::Error;
 
     fn poll_write(
-        mut self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        <W as Write>::poll_write(PinMut::reborrow(&mut *self), cx, buf)
+        <W as Write>::poll_write(Pin::get_mut(self).as_mut(), lw, buf)
     }
 
     fn poll_flush(
-        mut self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
-        <W as Write>::poll_flush(PinMut::reborrow(&mut *self), cx)
+        <W as Write>::poll_flush(Pin::get_mut(self).as_mut(), lw)
     }
 
     fn poll_close(
-        mut self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
-        <W as Write>::poll_close(PinMut::reborrow(&mut *self), cx)
+        <W as Write>::poll_close(Pin::get_mut(self).as_mut(), lw)
     }
 }
 
@@ -59,8 +59,8 @@ impl Write for &mut [u8] {
     type Error = !;
 
     fn poll_write(
-        mut self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = cmp::min(self.len(), buf.len());
@@ -71,15 +71,15 @@ impl Write for &mut [u8] {
     }
 
     fn poll_flush(
-        self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }

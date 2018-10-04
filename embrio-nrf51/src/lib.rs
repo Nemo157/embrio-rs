@@ -9,7 +9,7 @@
     never_type,
     option_replace,
     pin,
-    specialization,
+    specialization
 )]
 
 mod zst_ref;

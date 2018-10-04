@@ -5,17 +5,8 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies.pin-utils]
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 default-features = false
-
-[dependencies.futures-core-preview]
-version = "0.3.0-alpha.6"
-default-features = false
-
-[dependencies.futures-util-preview]
-version = "0.3.0-alpha.6"
-default-features = false
-features = ["nightly"]
 
 [target.thumbv6m-none-eabi.dependencies]
 cortex-m = { version = "0.5.4", features = ["const-fn"] }

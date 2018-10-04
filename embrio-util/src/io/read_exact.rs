@@ -1,4 +1,4 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 
 use futures_core::{future::Future, task::Poll};
 use futures_util::{future::poll_fn, ready};
@@ -18,15 +18,15 @@ impl<T> From<T> for Error<T> {
 }
 
 pub fn read_exact<'a, R: Read + 'a>(
-    mut this: PinMut<'a, R>,
+    mut this: Pin<&'a mut R>,
     mut buf: impl AsMut<[u8]> + 'a,
 ) -> impl Future<Output = Result<(), Error<R::Error>>> + 'a {
     let mut position = 0;
-    poll_fn(move |cx| {
+    poll_fn(move |lw| {
         let buf = buf.as_mut();
         while position < buf.len() {
             let amount =
-                ready!(this.reborrow().poll_read(cx, &mut buf[position..]))?;
+                ready!(this.as_mut().poll_read(lw, &mut buf[position..]))?;
             position += amount;
             if amount == 0 {
                 Err(Error::UnexpectedEof)?;

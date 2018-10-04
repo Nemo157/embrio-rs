@@ -2,7 +2,7 @@ use core::{
     cell::RefCell,
     cmp,
     marker::PhantomData,
-    pin::PinMut,
+    pin::Pin,
     task::{self, Poll, Waker},
 };
 
@@ -14,8 +14,8 @@ use embrio_core::io;
 use nrf51::{Interrupt, UART0};
 
 use crate::gpio::{
+    self,
     mode::{Floating, Input, Output, PushPull},
-    Pin,
 };
 
 pub use nrf51::uart0::baudrate::BAUDRATEW;
@@ -27,12 +27,16 @@ pub struct Uart<'b> {
 
 #[derive(Debug)]
 pub struct Tx<'a, 'b: 'a> {
-    _marker: PhantomData<(&'a mut Uart<'b>, &'a mut Pin<'b, Output<PushPull>>)>,
+    _marker: PhantomData<(
+        &'a mut Uart<'b>,
+        &'a mut gpio::Pin<'b, Output<PushPull>>,
+    )>,
 }
 
 #[derive(Debug)]
 pub struct Rx<'a, 'b: 'a> {
-    _marker: PhantomData<(&'a mut Uart<'b>, &'a mut Pin<'b, Input<Floating>>)>,
+    _marker:
+        PhantomData<(&'a mut Uart<'b>, &'a mut gpio::Pin<'b, Input<Floating>>)>,
 }
 
 struct Events {
@@ -91,8 +95,8 @@ impl<'b> Uart<'b> {
 
     pub fn init<'a>(
         &'a mut self,
-        txpin: &'a mut Pin<'b, Output<PushPull>>,
-        rxpin: &'a mut Pin<'b, Input<Floating>>,
+        txpin: &'a mut gpio::Pin<'b, Output<PushPull>>,
+        rxpin: &'a mut gpio::Pin<'b, Input<Floating>>,
         speed: BAUDRATEW,
     ) -> (Tx<'a, 'b>, Rx<'a, 'b>)
     where
@@ -191,8 +195,8 @@ impl<'a, 'b: 'a> io::Read for Rx<'a, 'b> {
     type Error = !;
 
     fn poll_read(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
@@ -208,7 +212,7 @@ impl<'a, 'b: 'a> io::Read for Rx<'a, 'b> {
                 context.rx_waker = None;
                 Poll::Ready(Ok(1))
             } else {
-                context.rx_waker = Some(cx.waker().clone());
+                context.rx_waker = Some(lw.clone().into_waker());
                 Poll::Pending
             }
         })
@@ -219,8 +223,8 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
     type Error = !;
 
     fn poll_write(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
@@ -240,15 +244,15 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
                 Poll::Ready(Ok(length + 1))
             } else {
-                context.tx.waker = Some(cx.waker().clone());
+                context.tx.waker = Some(lw.clone().into_waker());
                 Poll::Pending
             }
         })
     }
 
     fn poll_flush(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
@@ -259,15 +263,15 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.tx.waker = None;
                 Poll::Ready(Ok(()))
             } else {
-                context.tx.waker = Some(cx.waker().clone());
+                context.tx.waker = Some(lw.clone().into_waker());
                 Poll::Pending
             }
         })
     }
 
     fn poll_close(
-        self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();

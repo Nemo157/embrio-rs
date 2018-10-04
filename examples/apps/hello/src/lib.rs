@@ -8,14 +8,14 @@
     never_type,
     option_replace,
     pin,
-    tool_lints,
+    tool_lints
 )]
 
 use core::{
     cell::UnsafeCell,
     future::Future,
     ops::{Generator, GeneratorState},
-    pin::PinMut,
+    pin::Pin,
     ptr::NonNull,
     task::{self, Poll},
 };
@@ -26,7 +26,7 @@ use pin_utils::pin_mut;
 #[derive(Debug)]
 pub struct Error;
 
-static mut TASK_CONTEXT: Option<NonNull<task::Context>> = None;
+static mut LOCAL_WAKER: Option<NonNull<task::LocalWaker>> = None;
 
 macro_rules! aweight {
     ($e:expr) => {{
@@ -36,10 +36,10 @@ macro_rules! aweight {
             // `main`, but I can't be bothered guaranteeing that. Should work in
             // the current examples.
             let polled = unsafe {
-                let mut cx = TASK_CONTEXT.take().unwrap();
-                let pin = PinMut::new_unchecked(&mut pinned);
-                let polled = Future::poll(pin, cx.as_mut());
-                assert!(TASK_CONTEXT.replace(cx).is_none());
+                let mut lw = LOCAL_WAKER.take().unwrap();
+                let pin = Pin::new_unchecked(&mut pinned);
+                let polled = Future::poll(pin, lw.as_mut());
+                assert!(LOCAL_WAKER.replace(lw).is_none());
                 polled
             };
             if let Poll::Ready(x) = polled {
@@ -57,8 +57,8 @@ macro_rules! asink {
         impl<G: Generator<Yield = ()>> Future for FutureImpl<G> {
             type Output = G::Return;
             fn poll(
-                self: PinMut<Self>,
-                cx: &mut task::Context
+                self: Pin<&mut Self>,
+                lw: &task::LocalWaker
             ) -> Poll<Self::Output>
             {
                 // Safety: Not much, probably safe because of the restriction on
@@ -66,12 +66,12 @@ macro_rules! asink {
                 // work in the current examples.
                 #[allow(clippy::cast_ptr_alignment)]
                 unsafe {
-                    assert!(TASK_CONTEXT.replace(NonNull::new_unchecked(cx as *mut task::Context as *mut () as *mut task::Context<'static>)).is_none());
-                    let poll = match PinMut::get_mut_unchecked(self).0.resume() {
+                    assert!(LOCAL_WAKER.replace(NonNull::new_unchecked(lw as *const _ as *mut task::LocalWaker)).is_none());
+                    let poll = match Pin::get_mut_unchecked(self).0.resume() {
                         GeneratorState::Yielded(()) => Poll::Pending,
                         GeneratorState::Complete(x) => Poll::Ready(x),
                     };
-                    assert!(TASK_CONTEXT.take().is_some());
+                    assert!(LOCAL_WAKER.take().is_some());
                     poll
                 }
             }
@@ -94,20 +94,20 @@ fn run(
         pin_mut!(input);
         let mut buffer = [0; 64];
         loop {
-            aweight!(io::write_all(output.reborrow(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
-            aweight!(io::flush(output.reborrow())).map_err(|_| Error)?;
-            match aweight!(io::read_until(input.reborrow(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
+            aweight!(io::write_all(output.as_mut(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
+            aweight!(io::flush(output.as_mut())).map_err(|_| Error)?;
+            match aweight!(io::read_until(input.as_mut(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
                 Ok(amount) => {
                     if amount == 0 {
-                        aweight!(io::write_all(output.reborrow(), b"\n")).map_err(|_| Error)?;
+                        aweight!(io::write_all(output.as_mut(), b"\n")).map_err(|_| Error)?;
                         return Ok(());
                     }
-                    aweight!(io::write_all(output.reborrow(), "Hi ")).map_err(|_| Error)?;
-                    aweight!(io::write_all(output.reborrow(), &buffer[..(amount - 1)])).map_err(|_| Error)?;
-                    aweight!(io::write_all(output.reborrow(), " 👋 \n\n")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.as_mut(), "Hi ")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.as_mut(), &buffer[..(amount - 1)])).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.as_mut(), " 👋 \n\n")).map_err(|_| Error)?;
                 }
                 Err(_) => {
-                    aweight!(io::write_all(output.reborrow(), "\nSorry, that's a bit long for me 😭\n\n")).map_err(|_| Error)?;
+                    aweight!(io::write_all(output.as_mut(), "\nSorry, that's a bit long for me 😭\n\n")).map_err(|_| Error)?;
                 }
             }
         }

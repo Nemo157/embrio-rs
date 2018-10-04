@@ -1,4 +1,4 @@
-use core::{cmp, fmt, marker::Unpin, pin::PinMut};
+use core::{cmp, fmt, marker::Unpin, pin::Pin};
 
 use futures_core::{task, Poll};
 
@@ -38,8 +38,8 @@ where
     type Error = !;
 
     fn poll_write(
-        mut self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = {
@@ -54,15 +54,15 @@ where
     }
 
     fn poll_flush(
-        self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<'_, Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &task::LocalWaker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }

@@ -9,7 +9,7 @@
     macro_at_most_once_rep,
     never_type,
     pin,
-    specialization,
+    specialization
 )]
 
 pub mod fmt;

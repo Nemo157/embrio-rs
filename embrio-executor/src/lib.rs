@@ -6,7 +6,7 @@
     const_fn,
     futures_api,
     never_type,
-    pin,
+    pin
 )]
 
 //! A `no_std` compatible, allocation-less, single-threaded futures executor;
@@ -56,7 +56,6 @@
 //! ```
 
 mod executor;
-mod spawn;
 mod waker;
 
 pub use self::executor::Executor;

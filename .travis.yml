@@ -3,7 +3,7 @@ sudo: false
 cache: cargo
 
 rust:
-- nightly-2018-09-13
+- nightly-2018-10-03
 - nightly
 
 os:

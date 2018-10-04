@@ -5,7 +5,7 @@
     const_fn,
     futures_api,
     never_type,
-    pin,
+    pin
 )]
 
 pub mod gpio;
