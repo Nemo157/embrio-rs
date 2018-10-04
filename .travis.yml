@@ -1,6 +1,5 @@
 language: rust
 sudo: false
-cache: cargo
 
 rust:
 - nightly-2018-10-03
