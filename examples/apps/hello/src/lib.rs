@@ -6,9 +6,7 @@
     generator_trait,
     generators,
     never_type,
-    option_replace,
-    pin,
-    tool_lints
+    pin
 )]
 
 use core::{

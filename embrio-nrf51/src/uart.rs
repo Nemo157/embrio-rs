@@ -143,7 +143,7 @@ impl<'b> Uart<'b> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             let context = context.as_mut().unwrap();
-            context.nvic.clear_pending(Interrupt::UART0);
+            NVIC::unpend(Interrupt::UART0);
             if context.uart.events_rxdrdy.read().bits() == 1 {
                 context.uart.events_rxdrdy.reset();
                 context.events.rxdrdy = true;

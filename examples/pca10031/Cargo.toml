@@ -11,4 +11,4 @@ cortex-m-rt = { version = "0.6.1" }
 nrf51 = { version = "0.5.0", features = ["rt"] }
 embrio = { path = "../../embrio" }
 embrio-nrf51 = { path = "../../embrio-nrf51" }
-panic-abort = { version = "0.2.0" }
+panic-abort = { version = "0.3.1" }

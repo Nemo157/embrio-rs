@@ -7,7 +7,6 @@
     futures_api,
     in_band_lifetimes,
     never_type,
-    option_replace,
     pin,
     specialization
 )]

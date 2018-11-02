@@ -9,11 +9,11 @@ embrio-core = { path = "../embrio-core" }
 memchr = { version = "2.0.1", default-features = false }
 
 [dependencies.futures-core-preview]
-version = "0.3.0-alpha.7"
+version = "0.3.0-alpha.9"
 default-features = false
 
 [dependencies.futures-util-preview]
-version = "0.3.0-alpha.7"
+version = "0.3.0-alpha.9"
 default-features = false
 features = ["nightly"]
 

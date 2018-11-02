@@ -9,7 +9,7 @@ version = "0.1.0-alpha.3"
 default-features = false
 
 [target.thumbv6m-none-eabi.dependencies]
-cortex-m = { version = "0.5.4", features = ["const-fn"] }
+cortex-m = { version = "0.5.8", features = ["const-fn"] }
 
 [target.thumbv7m-none-eabi.dependencies]
-cortex-m = { version = "0.5.4", features = ["const-fn"] }
+cortex-m = { version = "0.5.8", features = ["const-fn"] }
