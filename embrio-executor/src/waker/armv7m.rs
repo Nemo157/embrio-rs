@@ -9,19 +9,16 @@ pub struct EmbrioWaker {
 }
 
 static EMBRIO_WAKER_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
-    // "Unsafe closures"
-    clone: { unsafe fn clone(data: *const ()) -> RawWaker {
-        (data as *const EmbrioWaker as &'static EmbrioWaker).raw_waker()
-    } clone },
-    into_waker: { unsafe fn into_waker(data: *const ()) -> Option<RawWaker> {
-        Some((data as *const EmbrioWaker as &'static EmbrioWaker).raw_waker())
-    } into_waker },
-    wake: { unsafe fn wake(data: *const ()) {
-        (data as *const EmbrioWaker as &'static EmbrioWaker).wake()
-    } wake },
-    drop_fn: { unsafe fn drop_fn(data: *const ()) {
-        // No-op
-    } drop_fn },
+    clone: {
+        |data| (data as *const EmbrioWaker as &'static EmbrioWaker).raw_waker()
+    } as fn(*const ()) -> RawWaker as unsafe fn(*const ()) -> RawWaker,
+    into_waker: {
+        |data| Some((data as *const EmbrioWaker as &'static EmbrioWaker).raw_waker())
+    } as fn(*const ()) -> Option<RawWaker> as unsafe fn(*const ()) -> Option<RawWaker>,
+    wake: {
+        |data| (data as *const EmbrioWaker as &'static EmbrioWaker).wake()
+    } as fn(*const ()) as unsafe fn(*const ())
+    drop_fn: { |data| (/* Noop */) } as fn(*const ()) as unsafe fn(*const ())
 };
 
 impl EmbrioWaker {
