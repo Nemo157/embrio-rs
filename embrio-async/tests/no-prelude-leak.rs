@@ -16,9 +16,9 @@
 #[test]
 fn smoke() {
     let future = async {
-        ::std::await!(::embrio_async::async_block! {
-            ::embrio_async::await!(async { 5 })
-        })
+        ::std::await!(::embrio_async::async_block!(foo, {
+            ::embrio_async::await!(foo, async { 5 })
+        }))
     };
     ::std::assert_eq!(::futures::executor::block_on(future), 5);
 }

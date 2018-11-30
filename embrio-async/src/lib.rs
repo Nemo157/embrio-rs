@@ -17,29 +17,74 @@
 //! of [`async_block!`](crate::async_block) be polled on different threads.
 
 use core::{
-    ptr::NonNull,
-    task,
+    task::{Poll, LocalWaker},
+    future::Future,
+    ops::{Generator, GeneratorState},
+    pin::Pin,
+    ptr,
+    mem,
 };
 
 #[doc(hidden)]
 pub use core as _core;
 
-pub static mut LOCAL_WAKER: Option<NonNull<task::LocalWaker>> = None;
+enum FutureImplState<F, G> {
+    NotStarted(F),
+    Started(G),
+    Invalid,
+}
+
+struct FutureImpl<F, G> {
+    local_waker: *const LocalWaker,
+    state: FutureImplState<F, G>
+}
+
+impl<F, G> Future for FutureImpl<F, G>
+where
+    F: FnOnce(*const *const LocalWaker) -> G,
+    G: Generator<Yield = ()>
+{
+    type Output = G::Return;
+
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        let this = unsafe { Pin::get_mut_unchecked(self) };
+        if let FutureImplState::Started(g) = &mut this.state {
+            unsafe {
+                this.local_waker = lw as *const _;
+                match g.resume() {
+                    GeneratorState::Yielded(()) => Poll::Pending,
+                    GeneratorState::Complete(x) => Poll::Ready(x),
+                }
+            }
+        } else if let FutureImplState::NotStarted(f) = mem::replace(&mut this.state, FutureImplState::Invalid) {
+            this.state = FutureImplState::Started(f(&this.local_waker as *const _));
+            unsafe { Pin::new_unchecked(this) }.poll(lw)
+        } else {
+            panic!("reached invalid state")
+        }
+    }
+}
+
+pub fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
+where
+    F: FnOnce(*const *const LocalWaker) -> G,
+    G: Generator<Yield = ()>,
+{
+    FutureImpl {
+        local_waker: ptr::null(),
+        state: FutureImplState::NotStarted(f),
+    }
+}
 
 #[macro_export]
 macro_rules! await {
-    ($e:expr) => {{
+    ($lw:ident, $e:expr) => {{
         let mut pinned = $e;
         loop {
-            // Safety: See note on crate
+            // Safety: Trust me
             let polled = unsafe {
-                let mut lw = $crate::LOCAL_WAKER.take().unwrap();
                 let pin = $crate::_core::pin::Pin::new_unchecked(&mut pinned);
-                let polled = $crate::_core::future::Future::poll(pin, lw.as_mut());
-                // Note: using assert_eq here because assert has hygiene issues
-                // on 2018, see https://github.com/rust-lang/rust/issues/56389
-                $crate::_core::assert_eq!($crate::LOCAL_WAKER.replace(lw).is_none(), true);
-                polled
+                $crate::_core::future::Future::poll(pin, &**$lw)
             };
             if let $crate::_core::task::Poll::Ready(x) = polled {
                 break x;
@@ -51,40 +96,12 @@ macro_rules! await {
 
 #[macro_export]
 macro_rules! async_block {
-    ($($s:stmt);*) => {{
-        struct FutureImpl<G>(G);
-
-        impl<G> $crate::_core::future::Future for FutureImpl<G>
-        where
-            G: $crate::_core::ops::Generator<Yield = ()>
-        {
-            type Output = G::Return;
-
-            fn poll(
-                self: $crate::_core::pin::Pin<&mut Self>,
-                lw: &$crate::_core::task::LocalWaker
-            ) -> $crate::_core::task::Poll<Self::Output>
-            {
-                // Safety: See note on crate
-                #[allow(clippy::cast_ptr_alignment)]
-                unsafe {
-                    let lw = $crate::_core::ptr::NonNull::new_unchecked(lw as *const _ as *mut _);
-                    $crate::_core::assert_eq!($crate::LOCAL_WAKER.replace(lw).is_none(), true);
-                    let poll = match $crate::_core::pin::Pin::get_mut_unchecked(self).0.resume() {
-                        $crate::_core::ops::GeneratorState::Yielded(())
-                            => $crate::_core::task::Poll::Pending,
-                        $crate::_core::ops::GeneratorState::Complete(x)
-                            => $crate::_core::task::Poll::Ready(x),
-                    };
-                    $crate::_core::assert_eq!($crate::LOCAL_WAKER.take().is_some(), true);
-                    poll
-                }
+    ($lw:ident, { $($s:stmt);* }) => {{
+        $crate::make_future(move |$lw| {
+            static move || {
+                if false { yield }
+                $($s)*
             }
-        }
-
-        FutureImpl(static move || {
-            if false { yield }
-            $($s)*
         })
     }}
 }
