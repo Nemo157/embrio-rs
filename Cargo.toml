@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "embrio",
+  "embrio-async",
   "embrio-core",
   "embrio-executor",
   "embrio-native",

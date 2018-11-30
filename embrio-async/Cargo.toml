@@ -1,0 +1,10 @@
+[package]
+name = "embrio-async"
+version = "0.1.0"
+authors = ["Wim Looman <wim@nemo157.com>"]
+edition = "2018"
+
+[dependencies]
+
+[dev-dependencies.futures-preview]
+version = "0.3.0-alpha.10"
