@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(async_await)]
 
 extern crate embrio_core;
 extern crate embrio_util;
@@ -9,8 +8,6 @@ extern crate embrio_executor;
 
 #[cfg(feature = "nrf51")]
 extern crate embrio_nrf51;
-
-pub use embrio_async::{async_block, await};
 
 pub mod fmt {
     pub use embrio_util::{await_write, await_writeln};

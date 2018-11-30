@@ -2,6 +2,7 @@
 members = [
   "embrio",
   "embrio-async",
+  "embrio-async/dehygiene",
   "embrio-core",
   "embrio-executor",
   "embrio-native",

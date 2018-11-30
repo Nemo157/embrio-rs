@@ -5,6 +5,7 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies]
+embrio-async-dehygiene = { path = "dehygiene" }
 
-[dev-dependencies.futures-preview]
-version = "0.3.0-alpha.10"
+[dev-dependencies]
+futures-preview = "0.3.0-alpha.10"

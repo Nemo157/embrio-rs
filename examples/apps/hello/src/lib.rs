@@ -7,7 +7,8 @@
     generator_trait,
     generators,
     never_type,
-    pin
+    pin,
+    proc_macro_hygiene,
 )]
 
 use ::{
@@ -15,8 +16,8 @@ use ::{
         cell::UnsafeCell,
         future::Future,
     },
-    embrio::{
-        io::{self, BufReader, Read, Write},
+    embrio::io::{self, BufReader, Read, Write},
+    embrio_async::{
         async_block, await,
     },
     pin_utils::pin_mut,

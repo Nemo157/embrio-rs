@@ -8,14 +8,6 @@
     pin
 )]
 
-//! # Safety
-//!
-//! The current implementation is single-thread safe only. You must ensure that
-//! all futures created via these macros are only polled on a single thread at a
-//! time. That's not "any future created by these macros", that's "all futures
-//! created by these macros", at no point can any pair of futures that came out
-//! of [`async_block!`](crate::async_block) be polled on different threads.
-
 use core::{
     task::{Poll, LocalWaker},
     future::Future,
@@ -25,8 +17,9 @@ use core::{
     mem,
 };
 
-#[doc(hidden)]
-pub use core as _core;
+//! Must not be renamed or facaded
+
+pub use embrio_async_dehygiene::{async_block, await};
 
 enum FutureImplState<F, G> {
     NotStarted(F),
@@ -74,34 +67,4 @@ where
         local_waker: ptr::null(),
         state: FutureImplState::NotStarted(f),
     }
-}
-
-#[macro_export]
-macro_rules! await {
-    ($lw:ident, $e:expr) => {{
-        let mut pinned = $e;
-        loop {
-            // Safety: Trust me
-            let polled = unsafe {
-                let pin = $crate::_core::pin::Pin::new_unchecked(&mut pinned);
-                $crate::_core::future::Future::poll(pin, &**$lw)
-            };
-            if let $crate::_core::task::Poll::Ready(x) = polled {
-                break x;
-            }
-            yield
-        }
-    }};
-}
-
-#[macro_export]
-macro_rules! async_block {
-    ($lw:ident, { $($s:stmt);* }) => {{
-        $crate::make_future(move |$lw| {
-            static move || {
-                if false { yield }
-                $($s)*
-            }
-        })
-    }}
 }

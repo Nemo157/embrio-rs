@@ -7,4 +7,5 @@ publish = false
 
 [dependencies]
 embrio = { path = "../../../embrio", features = ["executor"] }
+embrio-async = { path = "../../../embrio-async" }
 pin-utils = "0.1.0-alpha.3"

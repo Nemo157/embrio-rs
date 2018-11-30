@@ -6,7 +6,8 @@
     futures_api,
     generator_trait,
     generators,
-    pin
+    pin,
+    proc_macro_hygiene,
 )]
 
 // This is using no_implicit_prelude to test that the macros don't accidentally
@@ -16,9 +17,9 @@
 #[test]
 fn smoke() {
     let future = async {
-        ::std::await!(::embrio_async::async_block!(foo, {
-            ::embrio_async::await!(foo, async { 5 })
-        }))
+        ::std::await!(::embrio_async::async_block! {
+            ::embrio_async::await!(async { 5 })
+        })
     };
     ::std::assert_eq!(::futures::executor::block_on(future), 5);
 }
