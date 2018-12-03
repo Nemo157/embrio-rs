@@ -2,7 +2,7 @@ language: rust
 sudo: false
 
 rust:
-- nightly-2018-10-31
+- nightly-2018-11-30
 - nightly
 
 os:
@@ -23,13 +23,13 @@ matrix:
   include:
   - name: rustfmt
     install:
-    - rustup component add rustfmt-preview
+    - rustup component add rustfmt
     script:
     - cargo fmt --all -- --check
 
   - name: clippy
     install:
-    - rustup component add clippy-preview
+    - rustup component add clippy
     - rustup target add thumbv6m-none-eabi
     script:
     - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 -- -Dwarnings
