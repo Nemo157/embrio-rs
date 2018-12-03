@@ -8,18 +8,13 @@
     generators,
     never_type,
     pin,
-    proc_macro_hygiene,
+    proc_macro_hygiene
 )]
 
-use ::{
-    core::{
-        cell::UnsafeCell,
-        future::Future,
-    },
+use {
+    core::{cell::UnsafeCell, future::Future},
     embrio::io::{self, BufReader, Read, Write},
-    embrio_async::{
-        async_block, await,
-    },
+    embrio_async::{async_block, await},
     pin_utils::pin_mut,
 };
 

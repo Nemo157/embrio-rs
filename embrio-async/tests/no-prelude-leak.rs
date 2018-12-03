@@ -7,7 +7,7 @@
     generator_trait,
     generators,
     pin,
-    proc_macro_hygiene,
+    proc_macro_hygiene
 )]
 
 // This is using no_implicit_prelude to test that the macros don't accidentally

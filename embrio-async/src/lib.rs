@@ -7,20 +7,19 @@
     generators,
     pin
 )]
-
 // TODO: Figure out to hygienically have a loop between proc-macro and library
 // crates
 //! This crate must not be renamed or facaded because it's referred to by name
 //! from some proc-macros.
 
 use core::{
-    task::{Poll, LocalWaker},
     future::Future,
+    marker::Pinned,
+    mem,
     ops::{Generator, GeneratorState},
     pin::Pin,
     ptr,
-    mem,
-    marker::Pinned,
+    task::{LocalWaker, Poll},
 };
 
 pub use embrio_async_dehygiene::{async_block, await};
@@ -40,7 +39,7 @@ struct FutureImpl<F, G> {
 impl<F, G> Future for FutureImpl<F, G>
 where
     F: FnOnce(*const *const LocalWaker) -> G,
-    G: Generator<Yield = ()>
+    G: Generator<Yield = ()>,
 {
     type Output = G::Return;
 
@@ -63,8 +62,11 @@ where
                     GeneratorState::Complete(x) => Poll::Ready(x),
                 }
             }
-        } else if let FutureImplState::NotStarted(f) = mem::replace(&mut this.state, FutureImplState::Invalid) {
-            this.state = FutureImplState::Started(f(&this.local_waker as *const _));
+        } else if let FutureImplState::NotStarted(f) =
+            mem::replace(&mut this.state, FutureImplState::Invalid)
+        {
+            this.state =
+                FutureImplState::Started(f(&this.local_waker as *const _));
             unsafe { Pin::new_unchecked(this) }.poll(lw)
         } else {
             panic!("reached invalid state")

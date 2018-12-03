@@ -26,7 +26,8 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             yield
         }
-    }).into()
+    })
+    .into()
 }
 
 #[proc_macro]
@@ -46,5 +47,6 @@ pub fn async_block(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             })
         }
-    }).into()
+    })
+    .into()
 }
