@@ -73,6 +73,13 @@ where
     }
 }
 
+unsafe impl<F, G> Send for FutureImpl<F, G>
+where
+    F: Send + FnOnce(*const *const LocalWaker) -> G,
+    G: Generator<Yield = ()>,
+{
+}
+
 pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
 where
     F: FnOnce(*const *const LocalWaker) -> G,
