@@ -4,8 +4,7 @@
     async_await,
     const_fn,
     futures_api,
-    never_type,
-    pin
+    never_type
 )]
 
 pub mod gpio;

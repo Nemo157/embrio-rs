@@ -49,7 +49,7 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
             ref mut buffer,
             ref left,
             ref mut right,
-        } = unsafe { Pin::get_mut_unchecked(self) };
+        } = unsafe { Pin::get_unchecked_mut(self) };
         let reader = unsafe { Pin::new_unchecked(reader) };
         let buffer = buffer.as_mut();
         if let Poll::Ready(amount) =
@@ -71,7 +71,7 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
             ref mut left,
             ref mut right,
             ..
-        } = unsafe { Pin::get_mut_unchecked(self) };
+        } = unsafe { Pin::get_unchecked_mut(self) };
         assert!(amount <= *right - *left);
         *left += amount;
         if *left == *right {

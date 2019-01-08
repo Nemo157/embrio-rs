@@ -6,7 +6,6 @@
     futures_api,
     generator_trait,
     generators,
-    pin,
     proc_macro_hygiene
 )]
 

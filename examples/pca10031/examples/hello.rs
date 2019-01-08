@@ -1,10 +1,7 @@
 #![no_std]
 #![no_main]
-#![feature(underscore_imports)]
 
 // Link only imports, for panic implementation and interrupt vectors
-// TODO: https://github.com/rust-lang/rust/issues/53128#issuecomment-414117024
-#[allow(unused_imports)]
 use {nrf51 as _, panic_abort as _};
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};

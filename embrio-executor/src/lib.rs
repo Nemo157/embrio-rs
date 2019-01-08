@@ -5,8 +5,7 @@
     cfg_target_has_atomic,
     const_fn,
     futures_api,
-    never_type,
-    pin
+    never_type
 )]
 
 //! A `no_std` compatible, allocation-less, single-threaded futures executor;

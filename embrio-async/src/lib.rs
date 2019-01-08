@@ -4,8 +4,7 @@
     async_await,
     futures_api,
     generator_trait,
-    generators,
-    pin
+    generators
 )]
 // TODO: Figure out to hygienically have a loop between proc-macro and library
 // crates
@@ -14,7 +13,7 @@
 
 use core::{
     future::Future,
-    marker::Pinned,
+    marker::PhantomPinned,
     mem,
     ops::{Generator, GeneratorState},
     pin::Pin,
@@ -33,7 +32,7 @@ enum FutureImplState<F, G> {
 struct FutureImpl<F, G> {
     local_waker: *const LocalWaker,
     state: FutureImplState<F, G>,
-    _pinned: Pinned,
+    _pinned: PhantomPinned,
 }
 
 impl<F, G> Future for FutureImpl<F, G>
@@ -53,7 +52,7 @@ where
         // create it until we have observed ourselves in a pin so we know we
         // can't have moved between creating the pointer and the generator ever
         // using the pointer so it is safe to dereference).
-        let this = unsafe { Pin::get_mut_unchecked(self) };
+        let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
             unsafe {
                 this.local_waker = lw as *const _;
@@ -82,6 +81,6 @@ where
     FutureImpl {
         local_waker: ptr::null(),
         state: FutureImplState::NotStarted(f),
-        _pinned: Pinned,
+        _pinned: PhantomPinned,
     }
 }

@@ -1,7 +1,7 @@
 language: rust
 
 rust:
-- nightly-2018-11-30
+- nightly-2018-01-08
 - nightly
 
 os:
@@ -31,8 +31,8 @@ matrix:
     - rustup component add clippy
     - rustup target add thumbv6m-none-eabi
     script:
-    - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 -- -Dwarnings
-    - cargo clippy --target thumbv6m-none-eabi -p embrio-nrf51 -p pca10031 -- -Dwarnings
+    - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 --all-targets -- -Dwarnings
+    - cargo clippy --target thumbv6m-none-eabi -p embrio-nrf51 -p pca10031 --examples -- -Dwarnings
 
   - name: doc
     script:

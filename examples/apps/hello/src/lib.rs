@@ -7,7 +7,6 @@
     generator_trait,
     generators,
     never_type,
-    pin,
     proc_macro_hygiene
 )]
 

@@ -5,7 +5,7 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies.pin-utils]
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 default-features = false
 
 [target.thumbv6m-none-eabi.dependencies]
