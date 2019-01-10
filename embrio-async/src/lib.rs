@@ -37,7 +37,7 @@ struct FutureImpl<F, G> {
 
 impl<F, G> Future for FutureImpl<F, G>
 where
-    F: FnOnce(*const *const LocalWaker) -> G,
+    F: FnOnce(UnsafeWakeRef) -> G,
     G: Generator<Yield = ()>,
 {
     type Output = G::Return;
@@ -64,8 +64,9 @@ where
         } else if let FutureImplState::NotStarted(f) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            this.state =
-                FutureImplState::Started(f(&this.local_waker as *const _));
+            this.state = FutureImplState::Started(f(UnsafeWakeRef(
+                &this.local_waker as *const _,
+            )));
             unsafe { Pin::new_unchecked(this) }.poll(lw)
         } else {
             panic!("reached invalid state")
@@ -75,19 +76,55 @@ where
 
 unsafe impl<F, G> Send for FutureImpl<F, G>
 where
-    F: Send + FnOnce(*const *const LocalWaker) -> G,
-    G: Generator<Yield = ()>,
+    F: Send,
+    G: Send,
 {
 }
 
+/// `Send`-able wrapper around a `*const *const LocalWaker`
+///
+/// This exists to allow the generator inside a `FutureImpl` to be `Send`,
+/// provided there are no other `!Send` things in the body of the generator.
+pub struct UnsafeWakeRef(*const *const LocalWaker);
+
+impl UnsafeWakeRef {
+    /// Get a reference to the wrapped waker
+    ///
+    /// This must only be called from the `await!`
+    /// `make_future` function, which will in turn only be run when the
+    /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
+    /// outer `*const` remains valid.
+    pub unsafe fn get_waker(&self) -> &LocalWaker {
+        &**self.0
+    }
+}
+
+unsafe impl Send for UnsafeWakeRef {}
+
 pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
 where
-    F: FnOnce(*const *const LocalWaker) -> G,
+    F: FnOnce(UnsafeWakeRef) -> G,
     G: Generator<Yield = ()>,
 {
     FutureImpl {
         local_waker: ptr::null(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
+    }
+}
+
+fn _check_send() -> impl Future<Output = u8> + Send {
+    unsafe {
+        make_future(move |lw_ref| {
+            move || {
+                if false {
+                    yield
+                }
+
+                let _lw_ref = lw_ref;
+
+                5
+            }
+        })
     }
 }

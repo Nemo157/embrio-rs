@@ -19,7 +19,7 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // safe for reasons explained in the embrio-async safety notes.
             let polled = unsafe {
                 let pin = ::core::pin::Pin::new_unchecked(&mut pinned);
-                ::core::future::Future::poll(pin, &**#arg)
+                ::core::future::Future::poll(pin, #arg.get_waker())
             };
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
