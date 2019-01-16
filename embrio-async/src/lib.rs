@@ -90,7 +90,7 @@ pub struct UnsafeWakeRef(*const *const LocalWaker);
 impl UnsafeWakeRef {
     /// Get a reference to the wrapped waker
     ///
-    /// This must only be called from the `await!`
+    /// This must only be called from the `await!` macro within the
     /// `make_future` function, which will in turn only be run when the
     /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
     /// outer `*const` remains valid.
