@@ -8,4 +8,4 @@ edition = "2018"
 embrio-async-dehygiene = { path = "dehygiene" }
 
 [dev-dependencies]
-futures-preview = "0.3.0-alpha.11"
+futures-preview = "0.3.0-alpha.12"
