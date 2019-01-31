@@ -56,7 +56,7 @@ where
         if let FutureImplState::Started(g) = &mut this.state {
             unsafe {
                 this.local_waker = lw as *const _;
-                match g.resume() {
+                match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(()) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
                 }

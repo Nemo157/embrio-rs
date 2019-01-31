@@ -15,11 +15,11 @@ path = "../embrio-core"
 path = "../embrio-executor"
 
 [dependencies.futures-core-preview]
-version = "0.3.0-alpha.11"
+version = "0.3.0-alpha.12"
 default-features = false
 features = ["nightly"]
 
 [dependencies.futures-util-preview]
-version = "0.3.0-alpha.11"
+version = "0.3.0-alpha.12"
 default-features = false
 features = ["nightly"]
