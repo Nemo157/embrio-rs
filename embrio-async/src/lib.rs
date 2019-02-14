@@ -2,9 +2,11 @@
 #![feature(
     arbitrary_self_types,
     async_await,
+    exhaustive_patterns,
     futures_api,
     generator_trait,
-    generators
+    generators,
+    never_type
 )]
 // TODO: Figure out to hygienically have a loop between proc-macro and library
 // crates
@@ -20,8 +22,9 @@ use core::{
     ptr,
     task::{LocalWaker, Poll},
 };
+use futures_core::stream::Stream;
 
-pub use embrio_async_dehygiene::{async_block, await};
+pub use embrio_async_dehygiene::{async_block, async_stream_block, await};
 
 enum FutureImplState<F, G> {
     NotStarted(F),
@@ -38,7 +41,7 @@ struct FutureImpl<F, G> {
 impl<F, G> Future for FutureImpl<F, G>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = ()>,
+    G: Generator<Yield = Option<!>>,
 {
     type Output = G::Return;
 
@@ -57,7 +60,7 @@ where
             unsafe {
                 this.local_waker = lw as *const _;
                 match Pin::new_unchecked(g).resume() {
-                    GeneratorState::Yielded(()) => Poll::Pending,
+                    GeneratorState::Yielded(None) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
                 }
             }
@@ -79,6 +82,41 @@ where
     F: Send,
     G: Send,
 {
+}
+
+impl<T, F, G> Stream for FutureImpl<F, G>
+where
+    F: FnOnce(UnsafeWakeRef) -> G,
+    G: Generator<Yield = Option<T>, Return = ()>,
+{
+    type Item = T;
+
+    fn poll_next(
+        self: Pin<&mut Self>,
+        lw: &LocalWaker,
+    ) -> Poll<Option<Self::Item>> {
+        // Safety: See `impl Future for FutureImpl`
+        let this = unsafe { Pin::get_unchecked_mut(self) };
+        if let FutureImplState::Started(g) = &mut this.state {
+            unsafe {
+                this.local_waker = lw as *const _;
+                match Pin::new_unchecked(g).resume() {
+                    GeneratorState::Yielded(Some(x)) => Poll::Ready(Some(x)),
+                    GeneratorState::Yielded(None) => Poll::Pending,
+                    GeneratorState::Complete(()) => Poll::Ready(None),
+                }
+            }
+        } else if let FutureImplState::NotStarted(f) =
+            mem::replace(&mut this.state, FutureImplState::Invalid)
+        {
+            this.state = FutureImplState::Started(f(UnsafeWakeRef(
+                &this.local_waker as *const _,
+            )));
+            unsafe { Pin::new_unchecked(this) }.poll_next(lw)
+        } else {
+            panic!("reached invalid state")
+        }
+    }
 }
 
 /// `Send`-able wrapper around a `*const *const LocalWaker`
@@ -104,7 +142,19 @@ unsafe impl Send for UnsafeWakeRef {}
 pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = ()>,
+    G: Generator<Yield = Option<!>>,
+{
+    FutureImpl {
+        local_waker: ptr::null(),
+        state: FutureImplState::NotStarted(f),
+        _pinned: PhantomPinned,
+    }
+}
+
+pub unsafe fn make_stream<T, F, G>(f: F) -> impl Stream<Item = T>
+where
+    F: FnOnce(UnsafeWakeRef) -> G,
+    G: Generator<Yield = Option<T>, Return = ()>,
 {
     FutureImpl {
         local_waker: ptr::null(),
@@ -118,7 +168,7 @@ fn _check_send() -> impl Future<Output = u8> + Send {
         make_future(move |lw_ref| {
             move || {
                 if false {
-                    yield
+                    yield None
                 }
 
                 let _lw_ref = lw_ref;

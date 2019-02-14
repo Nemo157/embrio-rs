@@ -24,7 +24,7 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
             }
-            yield
+            yield ::core::option::Option::None;
         }
     })
     .into()
@@ -42,7 +42,48 @@ pub fn async_block(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         unsafe {
             ::embrio_async::make_future(move |#arg| {
                 static move || {
-                    if false { yield }
+                    if false { yield ::core::option::Option::None }
+                    #input
+                }
+            })
+        }
+    })
+    .into()
+}
+
+#[proc_macro]
+pub fn async_stream_block(
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    struct ReplaceYields;
+
+    impl syn::visit_mut::VisitMut for ReplaceYields {
+        fn visit_expr_yield_mut(&mut self, node: &mut syn::ExprYield) {
+            syn::visit_mut::visit_expr_yield_mut(self, node);
+            let expr = node
+                .expr
+                .take()
+                .unwrap_or_else(|| syn::parse_str("()").unwrap());
+            node.expr = Some(Box::new(
+                syn::parse2(quote!(::core::option::Option::Some(#expr)))
+                    .unwrap(),
+            ));
+        }
+    }
+
+    let input: TokenStream = input.into();
+    let mut input: syn::Block = syn::parse2(quote!({ #input })).unwrap();
+    syn::visit_mut::VisitMut::visit_block_mut(&mut ReplaceYields, &mut input);
+    let arg = Ident::new("_embrio_async_lw_argument", Span::call_site());
+    quote!({
+        // Safety: We trust users not to come here, see that argument name we
+        // generated above and use that in their code to break our other safety
+        // guarantees. Our use of it in await! is safe because of reasons
+        // probably described in the embrio-async safety notes.
+        unsafe {
+            ::embrio_async::make_stream(move |#arg| {
+                static move || {
+                    if false { yield ::core::option::Option::None }
                     #input
                 }
             })

@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 embrio-async-dehygiene = { path = "dehygiene" }
+futures-core-preview = { version = "0.3.0-alpha.12", default-features = false }
 
 [dev-dependencies]
 futures-preview = "0.3.0-alpha.12"
+pin-utils = "0.1.0-alpha.4"
