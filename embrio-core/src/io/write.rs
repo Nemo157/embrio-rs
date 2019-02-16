@@ -3,7 +3,7 @@ use core::{
     fmt::Debug,
     mem,
     pin::Pin,
-    task::{self, Poll},
+    task::{Poll, Waker},
 };
 
 pub trait Write {
@@ -11,18 +11,18 @@ pub trait Write {
 
     fn poll_write(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>>;
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::Error>>;
 
     fn poll_close(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::Error>>;
 }
 
@@ -34,24 +34,24 @@ where
 
     fn poll_write(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        <W as Write>::poll_write(Pin::get_mut(self).as_mut(), lw, buf)
+        <W as Write>::poll_write(Pin::get_mut(self).as_mut(), waker, buf)
     }
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
-        <W as Write>::poll_flush(Pin::get_mut(self).as_mut(), lw)
+        <W as Write>::poll_flush(Pin::get_mut(self).as_mut(), waker)
     }
 
     fn poll_close(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
-        <W as Write>::poll_close(Pin::get_mut(self).as_mut(), lw)
+        <W as Write>::poll_close(Pin::get_mut(self).as_mut(), waker)
     }
 }
 
@@ -60,7 +60,7 @@ impl Write for &mut [u8] {
 
     fn poll_write(
         mut self: Pin<&mut Self>,
-        _lw: &task::LocalWaker,
+        _waker: &Waker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = cmp::min(self.len(), buf.len());
@@ -72,14 +72,14 @@ impl Write for &mut [u8] {
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        _lw: &task::LocalWaker,
+        _waker: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
         self: Pin<&mut Self>,
-        _lw: &task::LocalWaker,
+        _waker: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }

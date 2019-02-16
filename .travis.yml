@@ -1,7 +1,7 @@
 language: rust
 
 rust:
-- nightly-2019-01-31
+- nightly-2019-02-21
 - nightly
 
 os:

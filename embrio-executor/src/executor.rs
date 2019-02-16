@@ -29,10 +29,10 @@ impl Executor {
     pub fn block_on<F: Future>(&'static mut self, future: F) -> F::Output {
         pin_mut!(future);
 
-        let lw = self.waker.local_waker();
+        let waker = self.waker.waker();
 
         loop {
-            if let Poll::Ready(val) = future.as_mut().poll(&lw) {
+            if let Poll::Ready(val) = future.as_mut().poll(&waker) {
                 return val;
             } else {
                 while !self.waker.test_and_clear() {
