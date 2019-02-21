@@ -26,6 +26,20 @@ use futures_core::stream::Stream;
 
 pub use embrio_async_dehygiene::{async_block, async_stream_block, await};
 
+trait IsPoll {
+    type Ready;
+
+    fn into_poll(self) -> Poll<Self::Ready>;
+}
+
+impl<T> IsPoll for Poll<T> {
+    type Ready = T;
+
+    fn into_poll(self) -> Poll<<Self as IsPoll>::Ready> {
+        self
+    }
+}
+
 enum FutureImplState<F, G> {
     NotStarted(F),
     Started(G),
@@ -38,10 +52,17 @@ struct FutureImpl<F, G> {
     _pinned: PhantomPinned,
 }
 
+unsafe impl<F, G> Send for FutureImpl<F, G>
+where
+    F: Send,
+    G: Send,
+{
+}
+
 impl<F, G> Future for FutureImpl<F, G>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = Option<!>>,
+    G: Generator<Yield = Poll<!>>,
 {
     type Output = G::Return;
 
@@ -60,7 +81,7 @@ where
             unsafe {
                 this.waker = waker as *const _;
                 match Pin::new_unchecked(g).resume() {
-                    GeneratorState::Yielded(None) => Poll::Pending,
+                    GeneratorState::Yielded(Poll::Pending) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
                 }
             }
@@ -77,19 +98,13 @@ where
     }
 }
 
-unsafe impl<F, G> Send for FutureImpl<F, G>
-where
-    F: Send,
-    G: Send,
-{
-}
-
-impl<T, F, G> Stream for FutureImpl<F, G>
+impl<F, G> Stream for FutureImpl<F, G>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = Option<T>, Return = ()>,
+    G: Generator<Return = ()>,
+    G::Yield: IsPoll,
 {
-    type Item = T;
+    type Item = <G::Yield as IsPoll>::Ready;
 
     fn poll_next(
         self: Pin<&mut Self>,
@@ -101,8 +116,7 @@ where
             unsafe {
                 this.waker = waker as *const _;
                 match Pin::new_unchecked(g).resume() {
-                    GeneratorState::Yielded(Some(x)) => Poll::Ready(Some(x)),
-                    GeneratorState::Yielded(None) => Poll::Pending,
+                    GeneratorState::Yielded(x) => x.into_poll().map(Some),
                     GeneratorState::Complete(()) => Poll::Ready(None),
                 }
             }
@@ -142,7 +156,7 @@ unsafe impl Send for UnsafeWakeRef {}
 pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = Option<!>>,
+    G: Generator<Yield = Poll<!>>,
 {
     FutureImpl {
         waker: ptr::null(),
@@ -154,7 +168,7 @@ where
 pub unsafe fn make_stream<T, F, G>(f: F) -> impl Stream<Item = T>
 where
     F: FnOnce(UnsafeWakeRef) -> G,
-    G: Generator<Yield = Option<T>, Return = ()>,
+    G: Generator<Yield = Poll<T>, Return = ()>,
 {
     FutureImpl {
         waker: ptr::null(),
@@ -168,7 +182,7 @@ fn _check_send() -> impl Future<Output = u8> + Send {
         make_future(move |lw_ref| {
             move || {
                 if false {
-                    yield None
+                    yield Poll::Pending
                 }
 
                 let _lw_ref = lw_ref;

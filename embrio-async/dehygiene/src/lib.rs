@@ -24,7 +24,7 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
             }
-            yield ::core::option::Option::None;
+            yield ::core::task::Poll::Pending;
         }
     })
     .into()
@@ -42,7 +42,7 @@ pub fn async_block(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         unsafe {
             ::embrio_async::make_future(move |#arg| {
                 static move || {
-                    if false { yield ::core::option::Option::None }
+                    if false { yield ::core::task::Poll::Pending }
                     #input
                 }
             })
@@ -65,8 +65,7 @@ pub fn async_stream_block(
                 .take()
                 .unwrap_or_else(|| syn::parse_str("()").unwrap());
             node.expr = Some(Box::new(
-                syn::parse2(quote!(::core::option::Option::Some(#expr)))
-                    .unwrap(),
+                syn::parse2(quote!(::core::task::Poll::Ready(#expr))).unwrap(),
             ));
         }
     }
@@ -83,7 +82,7 @@ pub fn async_stream_block(
         unsafe {
             ::embrio_async::make_stream(move |#arg| {
                 static move || {
-                    if false { yield ::core::option::Option::None }
+                    if false { yield ::core::task::Poll::Pending }
                     #input
                 }
             })
