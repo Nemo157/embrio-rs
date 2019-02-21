@@ -3,7 +3,7 @@ use core::{
     cmp,
     marker::PhantomData,
     pin::Pin,
-    task::{self, Poll, Waker},
+    task::{Poll, Waker},
 };
 
 use cortex_m::{
@@ -196,7 +196,7 @@ impl<'a, 'b: 'a> io::Read for Rx<'a, 'b> {
 
     fn poll_read(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
@@ -212,7 +212,7 @@ impl<'a, 'b: 'a> io::Read for Rx<'a, 'b> {
                 context.rx_waker = None;
                 Poll::Ready(Ok(1))
             } else {
-                context.rx_waker = Some(lw.clone().into_waker());
+                context.rx_waker = Some(waker.clone());
                 Poll::Pending
             }
         })
@@ -224,7 +224,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
 
     fn poll_write(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         if buf.is_empty() {
@@ -244,7 +244,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.uart.txd.write(|w| unsafe { w.bits(buf[0].into()) });
                 Poll::Ready(Ok(length + 1))
             } else {
-                context.tx.waker = Some(lw.clone().into_waker());
+                context.tx.waker = Some(waker.clone());
                 Poll::Pending
             }
         })
@@ -252,7 +252,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        lw: &task::LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
@@ -263,7 +263,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
                 context.tx.waker = None;
                 Poll::Ready(Ok(()))
             } else {
-                context.tx.waker = Some(lw.clone().into_waker());
+                context.tx.waker = Some(waker.clone());
                 Poll::Pending
             }
         })
@@ -271,7 +271,7 @@ impl<'a, 'b: 'a> io::Write for Tx<'a, 'b> {
 
     fn poll_close(
         self: Pin<&mut Self>,
-        _lw: &task::LocalWaker,
+        _lw: &Waker,
     ) -> Poll<Result<(), Self::Error>> {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();

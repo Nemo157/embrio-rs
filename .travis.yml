@@ -1,7 +1,7 @@
 language: rust
 
 rust:
-- nightly-2019-01-31
+- nightly-2019-02-21
 - nightly
 
 os:
@@ -36,4 +36,4 @@ matrix:
 
   - name: doc
     script:
-    - cargo doc --all --all-features --no-deps
+    - cargo doc --all --exclude embrio-nrf51 --exclude pca10031 --no-deps

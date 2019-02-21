@@ -20,7 +20,7 @@ use core::{
     ops::{Generator, GeneratorState},
     pin::Pin,
     ptr,
-    task::{LocalWaker, Poll},
+    task::{Poll, Waker},
 };
 use futures_core::stream::Stream;
 
@@ -33,7 +33,7 @@ enum FutureImplState<F, G> {
 }
 
 struct FutureImpl<F, G> {
-    local_waker: *const LocalWaker,
+    waker: *const Waker,
     state: FutureImplState<F, G>,
     _pinned: PhantomPinned,
 }
@@ -45,12 +45,12 @@ where
 {
     type Output = G::Return;
 
-    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         // Safety: Trust me 😉
         // TODO: Actual reasons this is safe (briefly, we trust the function
         // passed to make_future to only use the pointer we gave it when we
         // resume the generator it returned, during that time we have updated it
-        // to the local waker reference we just got, the pointer is a
+        // to the waker reference we just got, the pointer is a
         // self-reference from the generator back into our state, but we don't
         // create it until we have observed ourselves in a pin so we know we
         // can't have moved between creating the pointer and the generator ever
@@ -58,7 +58,7 @@ where
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
             unsafe {
-                this.local_waker = lw as *const _;
+                this.waker = waker as *const _;
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(None) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
@@ -68,9 +68,9 @@ where
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
             this.state = FutureImplState::Started(f(UnsafeWakeRef(
-                &this.local_waker as *const _,
+                &this.waker as *const _,
             )));
-            unsafe { Pin::new_unchecked(this) }.poll(lw)
+            unsafe { Pin::new_unchecked(this) }.poll(waker)
         } else {
             panic!("reached invalid state")
         }
@@ -93,13 +93,13 @@ where
 
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
         // Safety: See `impl Future for FutureImpl`
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
             unsafe {
-                this.local_waker = lw as *const _;
+                this.waker = waker as *const _;
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(Some(x)) => Poll::Ready(Some(x)),
                     GeneratorState::Yielded(None) => Poll::Pending,
@@ -110,20 +110,20 @@ where
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
             this.state = FutureImplState::Started(f(UnsafeWakeRef(
-                &this.local_waker as *const _,
+                &this.waker as *const _,
             )));
-            unsafe { Pin::new_unchecked(this) }.poll_next(lw)
+            unsafe { Pin::new_unchecked(this) }.poll_next(waker)
         } else {
             panic!("reached invalid state")
         }
     }
 }
 
-/// `Send`-able wrapper around a `*const *const LocalWaker`
+/// `Send`-able wrapper around a `*const *const Waker`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
 /// provided there are no other `!Send` things in the body of the generator.
-pub struct UnsafeWakeRef(*const *const LocalWaker);
+pub struct UnsafeWakeRef(*const *const Waker);
 
 impl UnsafeWakeRef {
     /// Get a reference to the wrapped waker
@@ -132,7 +132,7 @@ impl UnsafeWakeRef {
     /// `make_future` function, which will in turn only be run when the
     /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
     /// outer `*const` remains valid.
-    pub unsafe fn get_waker(&self) -> &LocalWaker {
+    pub unsafe fn get_waker(&self) -> &Waker {
         &**self.0
     }
 }
@@ -145,7 +145,7 @@ where
     G: Generator<Yield = Option<!>>,
 {
     FutureImpl {
-        local_waker: ptr::null(),
+        waker: ptr::null(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }
@@ -157,7 +157,7 @@ where
     G: Generator<Yield = Option<T>, Return = ()>,
 {
     FutureImpl {
-        local_waker: ptr::null(),
+        waker: ptr::null(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }
