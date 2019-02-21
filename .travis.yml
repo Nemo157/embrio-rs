@@ -36,4 +36,4 @@ matrix:
 
   - name: doc
     script:
-    - cargo doc --all --all-features --no-deps
+    - cargo doc --all --exclude embrio-nrf51 --exclude pca10031 --no-deps
