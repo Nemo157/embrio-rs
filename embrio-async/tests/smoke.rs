@@ -1,33 +1,36 @@
-#![feature(
-    arbitrary_self_types,
-    async_await,
-    await_macro,
-    generator_trait,
-    generators,
-    proc_macro_hygiene
-)]
+#![no_std]
+#![feature(async_await, generators)]
 
 use core::future::Future;
 
-use embrio_async::{async_block, async_fn, async_stream_block, await};
+use embrio_async::embrio_async;
 use ergo_pin::ergo_pin;
 use futures::{executor::block_on, stream::StreamExt};
 use futures_test::future::FutureTestExt;
 
+#[embrio_async]
 #[test]
 fn smoke() {
-    let future = async_block! {
-        await!(async { 5 }.pending_once())
-    };
+    let future = async { async { 5 }.pending_once().await };
     assert_eq!(block_on(future), 5);
+}
+
+#[embrio_async]
+#[test]
+fn test_async_block() {
+    let f = async { 5usize };
+
+    let f2 = async { f.await };
+    assert_eq!(block_on(f2), 5);
 }
 
 #[test]
 #[ergo_pin]
+#[embrio_async]
 fn smoke_stream() {
-    let mut stream = pin!(async_stream_block! {
-        yield await!(async { 5 }.pending_once());
-        yield await!(async { 6 }.pending_once());
+    let mut stream = pin!(async {
+        yield async { 5 }.pending_once().await;
+        yield async { 6 }.pending_once().await;
     });
     assert_eq!(block_on(stream.next()), Some(5));
     assert_eq!(block_on(stream.next()), Some(6));
@@ -40,8 +43,11 @@ enum Either<L, R> {
     Right(R),
 }
 
-#[async_fn]
-fn a_number_and_string<'a>(n: &usize, s: &'a str) -> Either<usize, &'a str> {
+#[embrio_async]
+async fn a_number_and_string<'a>(
+    n: &usize,
+    s: &'a str,
+) -> Either<usize, &'a str> {
     if *n % 2 == 0 {
         Either::Left(*n)
     } else {
@@ -49,13 +55,13 @@ fn a_number_and_string<'a>(n: &usize, s: &'a str) -> Either<usize, &'a str> {
     }
 }
 
-#[async_fn]
-fn a_wait_thing() -> Either<usize, &'static str> {
-    await!(a_number_and_string(&5, "Hello, world!"))
+#[embrio_async]
+async fn a_wait_thing() -> Either<usize, &'static str> {
+    a_number_and_string(&5, "Hello, world!").await
 }
 
-#[async_fn]
-fn anonymous_lifetime(f: &mut core::fmt::Formatter<'_>) {
+#[embrio_async]
+async fn anonymous_lifetime(f: &mut core::fmt::Formatter<'_>) {
     let _ = write!(f, "Hello, world!");
 }
 

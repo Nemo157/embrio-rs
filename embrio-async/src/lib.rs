@@ -1,12 +1,5 @@
 #![no_std]
-#![feature(
-    arbitrary_self_types,
-    async_await,
-    exhaustive_patterns,
-    generator_trait,
-    generators,
-    never_type
-)]
+#![feature(exhaustive_patterns, generator_trait, generators, never_type)]
 // TODO: Figure out to hygienically have a loop between proc-macro and library
 // crates
 //! This crate must not be renamed or facaded because it's referred to by name
@@ -23,9 +16,7 @@ use core::{
 };
 use futures_core::stream::Stream;
 
-pub use embrio_async_dehygiene::{
-    async_block, async_fn, async_stream_block, await,
-};
+pub use embrio_async_macros::embrio_async;
 
 #[doc(hidden)]
 /// Dummy trait for capturing additional lifetime bounds on `impl Trait`s
