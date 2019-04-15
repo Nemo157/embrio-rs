@@ -8,7 +8,7 @@ use quote::quote;
 #[proc_macro]
 pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: TokenStream = input.into();
-    let arg = Ident::new("_embrio_async_lw_argument", Span::call_site());
+    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     quote!({
         let mut pinned = #input;
         loop {
@@ -19,7 +19,7 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // safe for reasons explained in the embrio-async safety notes.
             let polled = unsafe {
                 let pin = ::core::pin::Pin::new_unchecked(&mut pinned);
-                ::core::future::Future::poll(pin, #arg.get_waker())
+                ::core::future::Future::poll(pin, #arg.get_context())
             };
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
@@ -33,14 +33,14 @@ pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn async_block(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: TokenStream = input.into();
-    let arg = Ident::new("_embrio_async_lw_argument", Span::call_site());
+    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     quote!({
         // Safety: We trust users not to come here, see that argument name we
         // generated above and use that in their code to break our other safety
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_future(move |#arg| {
+            ::embrio_async::make_future(move |mut #arg| {
                 static move || {
                     if false { yield ::core::task::Poll::Pending }
                     #input
@@ -73,14 +73,14 @@ pub fn async_stream_block(
     let input: TokenStream = input.into();
     let mut input: syn::Block = syn::parse2(quote!({ #input })).unwrap();
     syn::visit_mut::VisitMut::visit_block_mut(&mut ReplaceYields, &mut input);
-    let arg = Ident::new("_embrio_async_lw_argument", Span::call_site());
+    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     quote!({
         // Safety: We trust users not to come here, see that argument name we
         // generated above and use that in their code to break our other safety
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_stream(move |#arg| {
+            ::embrio_async::make_stream(move |mut #arg| {
                 static move || {
                     if false { yield ::core::task::Poll::Pending }
                     #input

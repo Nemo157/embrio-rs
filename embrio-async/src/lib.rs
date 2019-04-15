@@ -20,7 +20,7 @@ use core::{
     ops::{Generator, GeneratorState},
     pin::Pin,
     ptr,
-    task::{Poll, Waker},
+    task::{self, Poll},
 };
 use futures_core::stream::Stream;
 
@@ -47,7 +47,7 @@ enum FutureImplState<F, G> {
 }
 
 struct FutureImpl<F, G> {
-    waker: *const Waker,
+    context: *const task::Context<'static>,
     state: FutureImplState<F, G>,
     _pinned: PhantomPinned,
 }
@@ -61,25 +61,30 @@ where
 
 impl<F, G> Future for FutureImpl<F, G>
 where
-    F: FnOnce(UnsafeWakeRef) -> G,
+    F: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<!>>,
 {
     type Output = G::Return;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Self::Output> {
         // Safety: Trust me 😉
         // TODO: Actual reasons this is safe (briefly, we trust the function
         // passed to make_future to only use the pointer we gave it when we
         // resume the generator it returned, during that time we have updated it
-        // to the waker reference we just got, the pointer is a
+        // to the context reference we just got, the pointer is a
         // self-reference from the generator back into our state, but we don't
         // create it until we have observed ourselves in a pin so we know we
         // can't have moved between creating the pointer and the generator ever
         // using the pointer so it is safe to dereference).
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
+            // https://github.com/rust-lang/rust-clippy/issues/2906
+            #[allow(clippy::useless_transmute)]
             unsafe {
-                this.waker = waker as *const _;
+                this.context = mem::transmute(cx);
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(Poll::Pending) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
@@ -88,10 +93,10 @@ where
         } else if let FutureImplState::NotStarted(f) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            this.state = FutureImplState::Started(f(UnsafeWakeRef(
-                &this.waker as *const _,
+            this.state = FutureImplState::Started(f(UnsafeContextRef(
+                &this.context as *const _,
             )));
-            unsafe { Pin::new_unchecked(this) }.poll(waker)
+            unsafe { Pin::new_unchecked(this) }.poll(cx)
         } else {
             panic!("reached invalid state")
         }
@@ -100,7 +105,7 @@ where
 
 impl<F, G> Stream for FutureImpl<F, G>
 where
-    F: FnOnce(UnsafeWakeRef) -> G,
+    F: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Return = ()>,
     G::Yield: IsPoll,
 {
@@ -108,13 +113,15 @@ where
 
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         // Safety: See `impl Future for FutureImpl`
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
+            // https://github.com/rust-lang/rust-clippy/issues/2906
+            #[allow(clippy::useless_transmute)]
             unsafe {
-                this.waker = waker as *const _;
+                this.context = mem::transmute(cx);
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(x) => x.into_poll().map(Some),
                     GeneratorState::Complete(()) => Poll::Ready(None),
@@ -123,43 +130,45 @@ where
         } else if let FutureImplState::NotStarted(f) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            this.state = FutureImplState::Started(f(UnsafeWakeRef(
-                &this.waker as *const _,
+            this.state = FutureImplState::Started(f(UnsafeContextRef(
+                &this.context as *const _,
             )));
-            unsafe { Pin::new_unchecked(this) }.poll_next(waker)
+            unsafe { Pin::new_unchecked(this) }.poll_next(cx)
         } else {
             panic!("reached invalid state")
         }
     }
 }
 
-/// `Send`-able wrapper around a `*const *const Waker`
+/// `Send`-able wrapper around a `*const *const Context`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
 /// provided there are no other `!Send` things in the body of the generator.
-pub struct UnsafeWakeRef(*const *const Waker);
+pub struct UnsafeContextRef(*const *const task::Context<'static>);
 
-impl UnsafeWakeRef {
-    /// Get a reference to the wrapped waker
+impl UnsafeContextRef {
+    /// Get a reference to the wrapped context
     ///
     /// This must only be called from the `await!` macro within the
     /// `make_future` function, which will in turn only be run when the
     /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
     /// outer `*const` remains valid.
-    pub unsafe fn get_waker(&self) -> &Waker {
-        &**self.0
+    // https://github.com/rust-lang/rust-clippy/issues/2906
+    #[allow(clippy::transmute_ptr_to_ref)]
+    pub unsafe fn get_context(&mut self) -> &mut task::Context<'_> {
+        mem::transmute(self.0)
     }
 }
 
-unsafe impl Send for UnsafeWakeRef {}
+unsafe impl Send for UnsafeContextRef {}
 
 pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
 where
-    F: FnOnce(UnsafeWakeRef) -> G,
+    F: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<!>>,
 {
     FutureImpl {
-        waker: ptr::null(),
+        context: ptr::null(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }
@@ -167,11 +176,11 @@ where
 
 pub unsafe fn make_stream<T, F, G>(f: F) -> impl Stream<Item = T>
 where
-    F: FnOnce(UnsafeWakeRef) -> G,
+    F: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<T>, Return = ()>,
 {
     FutureImpl {
-        waker: ptr::null(),
+        context: ptr::null(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }

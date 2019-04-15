@@ -21,11 +21,11 @@ pub fn write_all<'a, W: Write + 'a>(
     buf: impl AsRef<[u8]> + 'a,
 ) -> impl Future<Output = Result<(), Error<W::Error>>> + 'a {
     let mut position = 0;
-    poll_fn(move |lw| {
+    poll_fn(move |cx| {
         let buf = buf.as_ref();
         while position < buf.len() {
             let amount =
-                ready!(this.as_mut().poll_write(lw, &buf[position..]))?;
+                ready!(this.as_mut().poll_write(cx, &buf[position..]))?;
             position += amount;
             if amount == 0 {
                 Err(Error::WriteZero)?;

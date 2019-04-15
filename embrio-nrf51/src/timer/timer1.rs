@@ -2,7 +2,7 @@ use core::{
     cell::RefCell,
     future::Future,
     pin::Pin,
-    task::{Poll, Waker},
+    task::{self, Poll, Waker},
     time::Duration,
 };
 
@@ -40,7 +40,7 @@ impl Timer<TIMER1> {
     pub fn interrupt() {
         free(|c| {
             if let Some(waker) = &*TIMER1_WAKER.borrow(c).borrow() {
-                waker.wake();
+                waker.wake_by_ref();
             }
         });
     }
@@ -83,8 +83,11 @@ impl<'a> embrio_core::timer::Timer for &'a mut Timer<TIMER1> {
 impl<'a> Future for Timeout<'a, TIMER1> {
     type Output = Result<&'a mut Timer<TIMER1>, !>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        Timer::<TIMER1>::register_waker(waker.clone());
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Self::Output> {
+        Timer::<TIMER1>::register_waker(cx.waker().clone());
         if self.0.as_mut().unwrap().0.events_compare[0].read().bits() == 1 {
             self.0.as_mut().unwrap().0.events_compare[0].reset();
             Poll::Ready(Ok(self.0.take().unwrap()))
@@ -99,9 +102,9 @@ impl<'a> Stream for Interval<'a, TIMER1> {
 
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        Timer::<TIMER1>::register_waker(waker.clone());
+        Timer::<TIMER1>::register_waker(cx.waker().clone());
         if (self.0).0.events_compare[0].read().bits() == 1 {
             (self.0).0.events_compare[0].reset();
             Poll::Ready(Some(Ok(())))

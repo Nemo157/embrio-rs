@@ -1,4 +1,7 @@
-use core::{future::Future, task::Poll};
+use core::{
+    future::Future,
+    task::{self, Poll},
+};
 
 use pin_utils::pin_mut;
 
@@ -30,9 +33,10 @@ impl Executor {
         pin_mut!(future);
 
         let waker = self.waker.waker();
+        let mut context = task::Context::from_waker(&waker);
 
         loop {
-            if let Poll::Ready(val) = future.as_mut().poll(&waker) {
+            if let Poll::Ready(val) = future.as_mut().poll(&mut context) {
                 return val;
             } else {
                 while !self.waker.test_and_clear() {

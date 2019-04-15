@@ -10,11 +10,11 @@ pub fn read_until<'a, R: BufRead + 'a>(
     mut buf: impl AsMut<[u8]> + 'a,
 ) -> impl Future<Output = Result<Result<usize, usize>, R::Error>> + 'a {
     let mut position = 0;
-    poll_fn(move |lw| {
+    poll_fn(move |cx| {
         let buf = buf.as_mut();
         while position < buf.len() {
             let (done, used) = {
-                let available = ready!(this.as_mut().poll_fill_buf(lw))?;
+                let available = ready!(this.as_mut().poll_fill_buf(cx))?;
                 let limit = cmp::min(available.len(), buf.len() - position);
                 if let Some(i) = memchr::memchr(byte, &available[..limit]) {
                     buf[position..=position + i]

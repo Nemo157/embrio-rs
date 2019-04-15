@@ -5,6 +5,6 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies.futures-core-preview]
-version = "0.3.0-alpha.13"
+version = "0.3.0-alpha.14"
 default-features = false
 features = ["nightly"]
