@@ -6,5 +6,5 @@ use futures_util::future::poll_fn;
 pub fn close<W: Write>(
     mut this: Pin<&mut W>,
 ) -> impl Future<Output = Result<(), W::Error>> + '_ {
-    poll_fn(move |lw| this.as_mut().poll_close(lw))
+    poll_fn(move |cx| this.as_mut().poll_close(cx))
 }

@@ -22,11 +22,11 @@ pub fn read_exact<'a, R: Read + 'a>(
     mut buf: impl AsMut<[u8]> + 'a,
 ) -> impl Future<Output = Result<(), Error<R::Error>>> + 'a {
     let mut position = 0;
-    poll_fn(move |lw| {
+    poll_fn(move |cx| {
         let buf = buf.as_mut();
         while position < buf.len() {
             let amount =
-                ready!(this.as_mut().poll_read(lw, &mut buf[position..]))?;
+                ready!(this.as_mut().poll_read(cx, &mut buf[position..]))?;
             position += amount;
             if amount == 0 {
                 Err(Error::UnexpectedEof)?;

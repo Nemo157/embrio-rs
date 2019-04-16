@@ -2,7 +2,7 @@ use core::{
     cmp,
     fmt::Debug,
     pin::Pin,
-    task::{Poll, Waker},
+    task::{self, Poll},
 };
 
 pub trait Read {
@@ -10,7 +10,7 @@ pub trait Read {
 
     fn poll_read(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>>;
 }
@@ -23,10 +23,10 @@ where
 
     fn poll_read(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        <R as Read>::poll_read(Pin::get_mut(self).as_mut(), waker, buf)
+        <R as Read>::poll_read(Pin::get_mut(self).as_mut(), cx, buf)
     }
 }
 
@@ -35,7 +35,7 @@ impl Read for &[u8] {
 
     fn poll_read(
         mut self: Pin<&mut Self>,
-        _waker: &Waker,
+        _cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = cmp::min(self.len(), buf.len());

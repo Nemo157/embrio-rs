@@ -2,7 +2,7 @@ use core::{
     cmp, fmt,
     marker::Unpin,
     pin::Pin,
-    task::{Poll, Waker},
+    task::{self, Poll},
 };
 
 use crate::io::Write;
@@ -42,7 +42,7 @@ where
 
     fn poll_write(
         mut self: Pin<&mut Self>,
-        _waker: &Waker,
+        _cx: &mut task::Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, Self::Error>> {
         let len = {
@@ -58,14 +58,14 @@ where
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        _waker: &Waker,
+        _cx: &mut task::Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
         self: Pin<&mut Self>,
-        _waker: &Waker,
+        _cx: &mut task::Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }

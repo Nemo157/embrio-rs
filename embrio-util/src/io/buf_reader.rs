@@ -1,6 +1,6 @@
 use core::{
     pin::Pin,
-    task::{Poll, Waker},
+    task::{self, Poll},
 };
 
 use embrio_core::io::{BufRead, Read};
@@ -29,10 +29,10 @@ impl<R: Read, B: AsMut<[u8]>> Read for BufReader<R, B> {
 
     fn poll_read(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize, Self::Error>> {
-        let available = ready!(self.poll_fill_buf(waker))?;
+        let available = ready!(self.poll_fill_buf(cx))?;
         buf.copy_from_slice(available);
         Poll::Ready(Ok(available.len()))
     }
@@ -41,7 +41,7 @@ impl<R: Read, B: AsMut<[u8]>> Read for BufReader<R, B> {
 impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
     fn poll_fill_buf<'a>(
         self: Pin<&'a mut Self>,
-        waker: &Waker,
+        cx: &mut task::Context<'_>,
     ) -> Poll<Result<&'a [u8], Self::Error>> {
         // Safety: we re-wrap the only !Unpin field in a new PinMut
         let BufReader {
@@ -53,7 +53,7 @@ impl<R: Read, B: AsMut<[u8]>> BufRead for BufReader<R, B> {
         let reader = unsafe { Pin::new_unchecked(reader) };
         let buffer = buffer.as_mut();
         if let Poll::Ready(amount) =
-            reader.poll_read(waker, &mut buffer[*right..])?
+            reader.poll_read(cx, &mut buffer[*right..])?
         {
             *right += amount;
             return Poll::Ready(Ok(&buffer[*left..*right]));
