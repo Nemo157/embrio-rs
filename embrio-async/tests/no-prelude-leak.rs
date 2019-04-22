@@ -20,7 +20,10 @@ fn smoke() {
             ::embrio_async::await!(async { 5 })
         })
     };
-    ::std::assert_eq!(::futures::executor::block_on(future), 5);
+    {
+        use ::std::panic;
+        ::std::assert_eq!(::futures::executor::block_on(future), 5);
+    }
 }
 
 #[test]
@@ -39,5 +42,8 @@ fn smoke_stream() {
         }
         sum
     };
-    ::std::assert_eq!(::futures::executor::block_on(future), 11);
+    {
+        use ::std::panic;
+        ::std::assert_eq!(::futures::executor::block_on(future), 11);
+    }
 }
