@@ -76,5 +76,41 @@ fn smoke_sink() {
         }
         sum
     };
-    ::std::assert_eq!(::futures::executor::block_on(future), 18);
+    {
+        use ::std::panic;
+        ::std::assert_eq!(::futures::executor::block_on(future), 18);
+    }
+}
+
+#[test]
+fn smoke_sink_typed() {
+    let future = async {
+        let mut sum = 0;
+        {
+            let stream = ::embrio_async::async_stream_block! {
+                yield 5;
+                yield 6;
+            };
+            let sink = ::embrio_async::async_sink_block!(u32 -> {
+                while let ::core::option::Option::Some(value) =
+                    ::embrio_async::await_input!()
+                {
+                    sum += value;
+                }
+                sum += 7;
+            });
+            ::pin_utils::pin_mut!(sink);
+            let stream = ::futures::stream::StreamExt::map(
+                stream,
+                ::core::result::Result::Ok,
+            );
+            ::std::await!(::futures::stream::StreamExt::forward(stream, sink))
+                .unwrap();
+        }
+        sum
+    };
+    {
+        use ::std::panic;
+        ::std::assert_eq!(::futures::executor::block_on(future), 18);
+    }
 }

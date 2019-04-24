@@ -115,11 +115,34 @@ pub fn async_stream_block(
     .into()
 }
 
+struct TypedSink {
+    item_ty: syn::Path,
+    _arrow: syn::Token![->],
+    block: proc_macro2::TokenStream,
+}
+
+impl syn::parse::Parse for TypedSink {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(TypedSink {
+            item_ty: input.parse()?,
+            _arrow: input.parse()?,
+            block: input.parse()?,
+        })
+    }
+}
+
 #[proc_macro]
 pub fn async_sink_block(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let input: TokenStream = input.into();
+    let (item_ty, input) = {
+        if let Ok(typed_sink) = syn::parse::<TypedSink>(input.clone()) {
+            (typed_sink.item_ty, typed_sink.block)
+        } else {
+            (Ident::new("_", Span::call_site()).into(), input.into())
+        }
+    };
+
     let context_arg =
         Ident::new("_embrio_async_context_argument", Span::call_site());
     let item_arg =
@@ -130,7 +153,7 @@ pub fn async_sink_block(
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_sink(|#context_arg: ::embrio_async::UnsafeContextRef, #item_arg: ::embrio_async::UnsafeItemRef<_>| {
+            ::embrio_async::make_sink(|#context_arg: ::embrio_async::UnsafeContextRef, #item_arg: ::embrio_async::UnsafeItemRef<#item_ty>| {
                 static || {
                     let mut #context_arg = #context_arg;
                     let #item_arg = #item_arg;
