@@ -25,6 +25,18 @@ use futures_core::stream::Stream;
 
 pub use embrio_async_dehygiene::{async_block, async_stream_block, await};
 
+unsafe fn loosen_context_lifetime<'a>(
+    context: &'a mut task::Context<'_>,
+) -> &'a mut task::Context<'static> {
+    mem::transmute(context)
+}
+
+unsafe fn constrain_context_lifetime<'a>(
+    context: &'a mut task::Context<'static>,
+) -> &'a mut task::Context<'a> {
+    mem::transmute(context)
+}
+
 trait IsPoll {
     type Ready;
 
@@ -46,7 +58,7 @@ enum FutureImplState<F, G> {
 }
 
 struct FutureImpl<F, G> {
-    context: *const task::Context<'static>,
+    context: *mut task::Context<'static>,
     state: FutureImplState<F, G>,
     _pinned: PhantomPinned,
 }
@@ -80,10 +92,8 @@ where
         // using the pointer so it is safe to dereference).
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
-            // https://github.com/rust-lang/rust-clippy/issues/2906
-            #[allow(clippy::useless_transmute)]
             unsafe {
-                this.context = mem::transmute(cx);
+                this.context = loosen_context_lifetime(cx);
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(Poll::Pending) => Poll::Pending,
                     GeneratorState::Complete(x) => Poll::Ready(x),
@@ -92,9 +102,8 @@ where
         } else if let FutureImplState::NotStarted(f) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            this.state = FutureImplState::Started(f(UnsafeContextRef(
-                &this.context as *const _,
-            )));
+            let future = f(UnsafeContextRef(&mut this.context));
+            this.state = FutureImplState::Started(future);
             unsafe { Pin::new_unchecked(this) }.poll(cx)
         } else {
             panic!("reached invalid state")
@@ -117,10 +126,8 @@ where
         // Safety: See `impl Future for FutureImpl`
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::Started(g) = &mut this.state {
-            // https://github.com/rust-lang/rust-clippy/issues/2906
-            #[allow(clippy::useless_transmute)]
             unsafe {
-                this.context = mem::transmute(cx);
+                this.context = loosen_context_lifetime(cx);
                 match Pin::new_unchecked(g).resume() {
                     GeneratorState::Yielded(x) => x.into_poll().map(Some),
                     GeneratorState::Complete(()) => Poll::Ready(None),
@@ -129,9 +136,8 @@ where
         } else if let FutureImplState::NotStarted(f) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            this.state = FutureImplState::Started(f(UnsafeContextRef(
-                &this.context as *const _,
-            )));
+            let future = f(UnsafeContextRef(&mut this.context));
+            this.state = FutureImplState::Started(future);
             unsafe { Pin::new_unchecked(this) }.poll_next(cx)
         } else {
             panic!("reached invalid state")
@@ -139,11 +145,11 @@ where
     }
 }
 
-/// `Send`-able wrapper around a `*const *const Context`
+/// `Send`-able wrapper around a `*mut *mut Context`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
 /// provided there are no other `!Send` things in the body of the generator.
-pub struct UnsafeContextRef(*const *const task::Context<'static>);
+pub struct UnsafeContextRef(*mut *mut task::Context<'static>);
 
 impl UnsafeContextRef {
     /// Get a reference to the wrapped context
@@ -153,9 +159,8 @@ impl UnsafeContextRef {
     /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
     /// outer `*const` remains valid.
     // https://github.com/rust-lang/rust-clippy/issues/2906
-    #[allow(clippy::transmute_ptr_to_ref)]
     pub unsafe fn get_context(&mut self) -> &mut task::Context<'_> {
-        mem::transmute(*self.0)
+        constrain_context_lifetime(&mut **self.0)
     }
 }
 
@@ -167,7 +172,7 @@ where
     G: Generator<Yield = Poll<!>>,
 {
     FutureImpl {
-        context: ptr::null(),
+        context: ptr::null_mut(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }
@@ -179,7 +184,7 @@ where
     G: Generator<Yield = Poll<T>, Return = ()>,
 {
     FutureImpl {
-        context: ptr::null(),
+        context: ptr::null_mut(),
         state: FutureImplState::NotStarted(f),
         _pinned: PhantomPinned,
     }
