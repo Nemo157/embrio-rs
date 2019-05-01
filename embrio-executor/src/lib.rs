@@ -4,7 +4,6 @@
     async_await,
     cfg_target_has_atomic,
     const_fn,
-    futures_api,
     never_type
 )]
 
