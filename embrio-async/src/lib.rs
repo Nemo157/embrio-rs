@@ -156,7 +156,7 @@ impl UnsafeContextRef {
     // https://github.com/rust-lang/rust-clippy/issues/2906
     #[allow(clippy::transmute_ptr_to_ref)]
     pub unsafe fn get_context(&mut self) -> &mut task::Context<'_> {
-        mem::transmute(self.0)
+        mem::transmute(*self.0)
     }
 }
 
