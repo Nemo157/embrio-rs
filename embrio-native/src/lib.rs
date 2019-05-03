@@ -1,4 +1,4 @@
-#![feature(arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types)]
 
 use embrio_core::io::{Read, Write};
 

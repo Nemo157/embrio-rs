@@ -4,7 +4,6 @@
     async_await,
     const_fn,
     core_intrinsics,
-    futures_api,
     in_band_lifetimes,
     never_type,
     specialization

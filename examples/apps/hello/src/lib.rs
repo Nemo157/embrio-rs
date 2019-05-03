@@ -3,7 +3,6 @@
     arbitrary_self_types,
     async_await,
     const_fn,
-    futures_api,
     generator_trait,
     generators,
     never_type,
