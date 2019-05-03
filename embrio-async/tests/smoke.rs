@@ -34,19 +34,6 @@ fn smoke_stream() {
     assert_eq!(block_on(stream.next()), None);
 }
 
-#[test]
-fn smoke_async_block() {
-    let f = async_block! {
-        5usize
-    };
-
-    let f2 = async_block! {
-        await!(f)
-    };
-
-    assert_eq!(block_on(f2), 5);
-}
-
 #[derive(Eq, PartialEq, Debug)]
 enum Either<L, R> {
     Left(L),
@@ -54,10 +41,7 @@ enum Either<L, R> {
 }
 
 #[async_fn]
-fn a_number_and_string<'a, 'b>(
-    n: &'a usize,
-    s: &'b str,
-) -> Either<usize, &'b str> {
+fn a_number_and_string<'a>(n: &usize, s: &'a str) -> Either<usize, &'a str> {
     if *n % 2 == 0 {
         Either::Left(*n)
     } else {
@@ -68,6 +52,11 @@ fn a_number_and_string<'a, 'b>(
 #[async_fn]
 fn a_wait_thing() -> Either<usize, &'static str> {
     await!(a_number_and_string(&5, "Hello, world!"))
+}
+
+#[async_fn]
+fn anonymous_lifetime(f: &mut core::fmt::Formatter<'_>) {
+    let _ = write!(f, "Hello, world!");
 }
 
 #[test]
