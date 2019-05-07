@@ -23,7 +23,14 @@ use core::{
 };
 use futures_core::stream::Stream;
 
-pub use embrio_async_dehygiene::{async_block, async_stream_block, await};
+pub use embrio_async_dehygiene::{
+    async_block, async_fn, async_stream_block, await,
+};
+
+#[doc(hidden)]
+/// Dummy trait for capturing additional lifetime bounds on `impl Trait`s
+pub trait Captures<'a> {}
+impl<'a, T: ?Sized> Captures<'a> for T {}
 
 unsafe fn loosen_context_lifetime<'a>(
     context: &'a mut task::Context<'_>,

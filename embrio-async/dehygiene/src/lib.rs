@@ -2,8 +2,17 @@
 
 extern crate proc_macro;
 
+#[macro_use]
+extern crate syn;
+
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+
+use syn::{
+    parse_macro_input, visit_mut::VisitMut, Block, Generics, ItemFn, Lifetime,
+    LifetimeDef, ReturnType, TypeImplTrait, TypeParam, TypeParamBound,
+    TypeReference,
+};
 
 #[proc_macro]
 pub fn await(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -89,4 +98,92 @@ pub fn async_stream_block(
         }
     })
     .into()
+}
+
+#[proc_macro_attribute]
+pub fn async_fn(
+    attr: proc_macro::TokenStream,
+    body: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    assert!(attr.is_empty(), "async_fn attribute takes no arguments");
+    async_fn_impl(parse_macro_input!(body)).into()
+}
+
+fn async_fn_impl(mut item: ItemFn) -> TokenStream {
+    syn::visit_mut::visit_item_fn_mut(
+        &mut AsyncFnTransform::default(),
+        &mut item,
+    );
+
+    quote!(#item)
+}
+
+#[derive(Default)]
+struct AsyncFnTransform {
+    original_lifetimes: Vec<Lifetime>,
+}
+
+fn future_lifetime() -> Lifetime {
+    Lifetime::new("'future", Span::call_site())
+}
+
+impl VisitMut for AsyncFnTransform {
+    fn visit_type_reference_mut(&mut self, i: &mut TypeReference) {
+        if i.lifetime.is_none() {
+            i.lifetime = future_lifetime().into();
+        }
+        self.visit_type_mut(&mut *i.elem);
+    }
+    fn visit_type_impl_trait_mut(&mut self, i: &mut TypeImplTrait) {
+        for bound in i.bounds.iter_mut() {
+            self.visit_type_param_bound_mut(bound);
+        }
+        i.bounds.push(TypeParamBound::Lifetime(future_lifetime()));
+    }
+    fn visit_type_param_mut(&mut self, i: &mut TypeParam) {
+        if i.colon_token.is_none() {
+            i.colon_token = Some(Token![:](Span::call_site()));
+        }
+        for bound in i.bounds.iter_mut() {
+            self.visit_type_param_bound_mut(bound);
+        }
+        i.bounds.push(future_lifetime().into())
+    }
+    fn visit_lifetime_mut(&mut self, i: &mut Lifetime) {
+        if i.ident == "_" {
+            *i = future_lifetime();
+        }
+    }
+    fn visit_lifetime_def_mut(&mut self, i: &mut LifetimeDef) {
+        if i.colon_token.is_none() {
+            i.colon_token = Some(Token![:](Span::call_site()));
+        }
+        i.bounds.push(future_lifetime());
+    }
+    fn visit_generics_mut(&mut self, i: &mut Generics) {
+        self.original_lifetimes =
+            i.lifetimes().map(|lt| lt.lifetime.clone()).collect();
+        for param in i.params.iter_mut() {
+            self.visit_generic_param_mut(param);
+        }
+        i.params
+            .insert(0, LifetimeDef::new(future_lifetime()).into());
+    }
+    fn visit_block_mut(&mut self, i: &mut Block) {
+        let async_block = quote!({
+            ::embrio_async::async_block! #i
+        });
+        *i = syn::parse2(async_block).expect("parsed block");
+    }
+    fn visit_return_type_mut(&mut self, i: &mut ReturnType) {
+        let lifetimes = &self.original_lifetimes;
+        *i = syn::parse2(match i {
+            ReturnType::Default => quote! {
+                -> impl Future<Output = ()> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+            },
+            ReturnType::Type(_, ty) => quote! {
+                -> impl Future<Output = #ty> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+            },
+        }).unwrap();
+    }
 }
