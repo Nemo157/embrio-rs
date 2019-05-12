@@ -35,9 +35,10 @@ fn await_impl(input: &Expr) -> Expr {
     syn::parse2(expr).unwrap()
 }
 
-fn async_block(expr_async: &syn::ExprAsync) -> Expr {
-    let block = &expr_async.block;
+fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
+    let block = &mut expr_async.block;
     let mv = &expr_async.capture;
+    syn::visit_mut::visit_block_mut(&mut ExpandAwait, block);
     let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     let tokens = quote!({
         // Safety: We trust users not to come here, see that argument name we
@@ -83,6 +84,7 @@ fn async_stream_block(expr_async: &mut syn::ExprAsync) -> Expr {
     let mut block = &mut expr_async.block;
     let capture = &expr_async.capture;
     syn::visit_mut::VisitMut::visit_block_mut(&mut ReplaceYields, &mut block);
+    syn::visit_mut::VisitMut::visit_block_mut(&mut ExpandAwait, &mut block);
     let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     let stream = quote!({
         // Safety: We trust users not to come here, see that argument name we
@@ -121,7 +123,6 @@ fn async_fn_impl(mut item: ItemFn) -> TokenStream {
     }
 
     syn::visit_mut::visit_block_mut(&mut AsyncBlockTransform, &mut item.block);
-    syn::visit_mut::visit_block_mut(&mut ExpandAwait, &mut item.block);
 
     quote!(#item)
 }
@@ -155,7 +156,7 @@ impl VisitMut for AsyncBlockTransform {
                 if contains_yield(&expr_async.block) {
                     async_stream_block(expr_async)
                 } else {
-                    async_block(&expr_async)
+                    async_block(expr_async)
                 }
             }
             _ => {
