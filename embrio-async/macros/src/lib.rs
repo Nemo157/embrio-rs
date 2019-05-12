@@ -132,19 +132,11 @@ impl syn::visit_mut::VisitMut for ExpandAwait {
     fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
         syn::visit_mut::visit_expr_mut(self, node);
         let base = match node {
-            syn::Expr::Field(ExprField { member, base, .. }) => {
-                let member = if let Member::Named(m) = member {
-                    m
-                } else {
-                    return;
-                };
-
-                if member == "await" {
-                    &*base
-                } else {
-                    return;
-                }
-            }
+            syn::Expr::Field(ExprField {
+                member: Member::Named(member),
+                base,
+                ..
+            }) if member == "await" => &*base,
             _ => return,
         };
 
@@ -179,8 +171,7 @@ fn contains_yield(block: &Block) -> bool {
     struct ContainsYield(bool);
 
     impl<'a> Visit<'a> for ContainsYield {
-        fn visit_expr_yield(&mut self, i: &'a ExprYield) {
-            syn::visit::visit_expr_yield(self, i);
+        fn visit_expr_yield(&mut self, _: &'a ExprYield) {
             self.0 = true;
         }
 
