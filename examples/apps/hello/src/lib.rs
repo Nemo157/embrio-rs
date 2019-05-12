@@ -1,49 +1,55 @@
 #![no_std]
-#![feature(
-    arbitrary_self_types,
-    async_await,
-    const_fn,
-    generator_trait,
-    generators,
-    never_type,
-    proc_macro_hygiene
-)]
+#![feature(generators)]
 
 use {
     core::{cell::UnsafeCell, future::Future},
     embrio::io::{self, BufReader, Read, Write},
-    embrio_async::{async_block, await},
+    embrio_async::embrio_async,
     pin_utils::pin_mut,
 };
 
 #[derive(Debug)]
 pub struct Error;
 
-fn run(
-    input: impl Read,
-    output: impl Write,
-) -> impl Future<Output = Result<(), Error>> {
-    async_block! {
-        pin_mut!(output);
-        let input = BufReader::new(input, [0; 32]);
-        pin_mut!(input);
-        let mut buffer = [0; 64];
-        loop {
-            await!(io::write_all(output.as_mut(), "Hello, what's your name?\n> ")).map_err(|_| Error)?;
-            await!(io::flush(output.as_mut())).map_err(|_| Error)?;
-            match await!(io::read_until(input.as_mut(), b'\n', &mut buffer[..])).map_err(|_| Error)? {
-                Ok(amount) => {
-                    if amount == 0 {
-                        await!(io::write_all(output.as_mut(), b"\n")).map_err(|_| Error)?;
-                        return Ok(());
-                    }
-                    await!(io::write_all(output.as_mut(), "Hi ")).map_err(|_| Error)?;
-                    await!(io::write_all(output.as_mut(), &buffer[..(amount - 1)])).map_err(|_| Error)?;
-                    await!(io::write_all(output.as_mut(), " 👋 \n\n")).map_err(|_| Error)?;
+#[embrio_async]
+async fn run(input: impl Read, output: impl Write) -> Result<(), Error> {
+    pin_mut!(output);
+    let input = BufReader::new(input, [0; 32]);
+    pin_mut!(input);
+    let mut buffer = [0; 64];
+    loop {
+        io::write_all(output.as_mut(), "Hello, what's your name?\n> ")
+            .await
+            .map_err(|_| Error)?;
+        io::flush(output.as_mut()).await.map_err(|_| Error)?;
+        match io::read_until(input.as_mut(), b'\n', &mut buffer[..])
+            .await
+            .map_err(|_| Error)?
+        {
+            Ok(amount) => {
+                if amount == 0 {
+                    io::write_all(output.as_mut(), b"\n")
+                        .await
+                        .map_err(|_| Error)?;
+                    return Ok(());
                 }
-                Err(_) => {
-                    await!(io::write_all(output.as_mut(), "\nSorry, that's a bit long for me 😭\n\n")).map_err(|_| Error)?;
-                }
+                io::write_all(output.as_mut(), "Hi ")
+                    .await
+                    .map_err(|_| Error)?;
+                io::write_all(output.as_mut(), &buffer[..(amount - 1)])
+                    .await
+                    .map_err(|_| Error)?;
+                io::write_all(output.as_mut(), " 👋 \n\n")
+                    .await
+                    .map_err(|_| Error)?;
+            }
+            Err(_) => {
+                io::write_all(
+                    output.as_mut(),
+                    "\nSorry, that's a bit long for me 😭\n\n",
+                )
+                .await
+                .map_err(|_| Error)?;
             }
         }
     }
