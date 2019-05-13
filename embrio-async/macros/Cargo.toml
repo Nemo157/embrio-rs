@@ -1,5 +1,5 @@
 [package]
-name = "embrio-async-dehygiene"
+name = "embrio-async-macros"
 version = "0.1.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
@@ -10,4 +10,4 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "0.4.24"
 quote = "0.6.10"
-syn = { version = "0.15.26", features = ["full", "visit-mut", "parsing"] }
+syn = { version = "0.15.26", features = ["full", "visit", "visit-mut", "parsing"] }
