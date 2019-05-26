@@ -59,18 +59,18 @@ async fn run(input: impl Read, output: impl Write) -> Result<(), Error> {
 ///
 /// This function can only be called _once_ in the entire lifetime of a process.
 pub unsafe fn main(input: impl Read, output: impl Write) -> Result<(), Error> {
-    struct Unsync<T>(UnsafeCell<T>);
-    impl<T> Unsync<T> {
+    struct RacyCell<T>(UnsafeCell<T>);
+    impl<T> RacyCell<T> {
         const fn new(value: T) -> Self {
-            Unsync(UnsafeCell::new(value))
+            RacyCell(UnsafeCell::new(value))
         }
         #[allow(clippy::mut_from_ref)]
         unsafe fn get_mut_unchecked(&self) -> &mut T {
             &mut *self.0.get()
         }
     }
-    unsafe impl<T> Sync for Unsync<T> {}
-    static EXECUTOR: Unsync<embrio::Executor> =
-        Unsync::new(embrio::Executor::new());
+    unsafe impl<T> Sync for RacyCell<T> {}
+    static EXECUTOR: RacyCell<embrio::Executor> =
+        RacyCell::new(embrio::Executor::new());
     EXECUTOR.get_mut_unchecked().block_on(run(input, output))
 }
