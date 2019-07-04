@@ -49,28 +49,49 @@ impl<T> IsPoll for Poll<T> {
     }
 }
 
-enum FutureImplState<F, G> {
-    NotStarted(F),
+// `C` is a closure that is passed to `::embrio_async::make_future`. `G` is a generator that is
+// returned by `C`.
+enum FutureImplState<C, G> {
+    NotStarted(C),
     Started(G),
     Invalid,
 }
 
-struct FutureImpl<F, G> {
+// An `async` block is tranformed into a `FutureImpl`, where initially `C` is a closure of the form
+// below, which when called returns a generator `G`.
+//
+// ```
+// |mut _embrio_async_contex_argument: UnsafeContextRef| -> [static generator@...] {
+//     static move || {
+//         if false {
+//             yield ::core::task::Poll::Pending
+//         }
+//         {
+//             ...
+//         }
+//     }
+// }
+// ```
+//
+// when `FutureImpl` is first `poll`ed (or `poll_next`ed), `FutureImpl`'s `state` field goes from
+// `FutureImplState::NotStarted(C)` to `FutureImplState::Started(G)` and the generator executes
+// till the first yield point.
+struct FutureImpl<C, G> {
     context: *mut task::Context<'static>,
-    state: FutureImplState<F, G>,
+    state: FutureImplState<C, G>,
     _pinned: PhantomPinned,
 }
 
-unsafe impl<F, G> Send for FutureImpl<F, G>
+unsafe impl<C, G> Send for FutureImpl<C, G>
 where
-    F: Send,
+    C: Send,
     G: Send,
 {
 }
 
-impl<F, G> Future for FutureImpl<F, G>
+impl<C, G> Future for FutureImpl<C, G>
 where
-    F: FnOnce(UnsafeContextRef) -> G,
+    C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<!>>,
 {
     type Output = G::Return;
@@ -97,11 +118,11 @@ where
                     GeneratorState::Complete(x) => Poll::Ready(x),
                 }
             }
-        } else if let FutureImplState::NotStarted(f) =
+        } else if let FutureImplState::NotStarted(c) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            let future = f(UnsafeContextRef(&mut this.context));
-            this.state = FutureImplState::Started(future);
+            let gen = c(UnsafeContextRef(&mut this.context));
+            this.state = FutureImplState::Started(gen);
             unsafe { Pin::new_unchecked(this) }.poll(cx)
         } else {
             panic!("reached invalid state")
@@ -109,9 +130,9 @@ where
     }
 }
 
-impl<F, G> Stream for FutureImpl<F, G>
+impl<C, G> Stream for FutureImpl<C, G>
 where
-    F: FnOnce(UnsafeContextRef) -> G,
+    C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Return = ()>,
     G::Yield: IsPoll,
 {
@@ -131,11 +152,11 @@ where
                     GeneratorState::Complete(()) => Poll::Ready(None),
                 }
             }
-        } else if let FutureImplState::NotStarted(f) =
+        } else if let FutureImplState::NotStarted(c) =
             mem::replace(&mut this.state, FutureImplState::Invalid)
         {
-            let future = f(UnsafeContextRef(&mut this.context));
-            this.state = FutureImplState::Started(future);
+            let gen = c(UnsafeContextRef(&mut this.context));
+            this.state = FutureImplState::Started(gen);
             unsafe { Pin::new_unchecked(this) }.poll_next(cx)
         } else {
             panic!("reached invalid state")
@@ -164,26 +185,26 @@ impl UnsafeContextRef {
 
 unsafe impl Send for UnsafeContextRef {}
 
-pub unsafe fn make_future<F, G>(f: F) -> impl Future<Output = G::Return>
+pub unsafe fn make_future<C, G>(c: C) -> impl Future<Output = G::Return>
 where
-    F: FnOnce(UnsafeContextRef) -> G,
+    C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<!>>,
 {
     FutureImpl {
         context: ptr::null_mut(),
-        state: FutureImplState::NotStarted(f),
+        state: FutureImplState::NotStarted(c),
         _pinned: PhantomPinned,
     }
 }
 
-pub unsafe fn make_stream<T, F, G>(f: F) -> impl Stream<Item = T>
+pub unsafe fn make_stream<T, C, G>(c: C) -> impl Stream<Item = T>
 where
-    F: FnOnce(UnsafeContextRef) -> G,
+    C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<T>, Return = ()>,
 {
     FutureImpl {
         context: ptr::null_mut(),
-        state: FutureImplState::NotStarted(f),
+        state: FutureImplState::NotStarted(c),
         _pinned: PhantomPinned,
     }
 }

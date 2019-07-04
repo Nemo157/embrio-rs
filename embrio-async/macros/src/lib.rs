@@ -12,6 +12,25 @@ use syn::{
     ReturnType, TypeImplTrait, TypeParam, TypeParamBound, TypeReference,
 };
 
+// A `.await` expression is transformed into,
+//
+// {
+//     let mut pinned = { /* the input expression */ }
+//
+//     loop {
+//         let polled = unsafe {
+//             let pin = ::core::pin::Pin::new_unchecked(&mut pinned);
+//             ::core::future::Future::poll(
+//                 pin,
+//                 _embrio_async_context_argument.get_context(),
+//             )
+//         };
+//         if let ::core::task::Poll::Ready(x) = polled {
+//             break x;
+//         }
+//         yield ::core::task::Poll::Pending;
+//     }
+// }
 fn await_impl(input: &Expr) -> Expr {
     let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     let expr = quote!({
@@ -35,6 +54,25 @@ fn await_impl(input: &Expr) -> Expr {
     syn::parse2(expr).unwrap()
 }
 
+// An `async` block is transformed into,
+//
+// {
+//     unsafe {
+//         ::embrio_async::make_future(<move> |mut _embrio_async_context_argument| {
+//             static move || {
+//                 if false {
+//                     yield ::core::task::Poll::Pending
+//                 }
+//                 {
+//                     /* the input block */
+//                 }
+//             }
+//         })
+//     }
+// }
+//
+// `static` in `static move || { ... }` means that the generator may hold self-references across
+// yield points.
 fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
     let block = &mut expr_async.block;
     let mv = &expr_async.capture;
@@ -58,6 +96,24 @@ fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
     syn::parse2(tokens).unwrap()
 }
 
+// When an `async` block contains a `yield` keyword, then its transformed into a stream.
+//
+// {
+//     unsafe {
+//         ::embrio_async::make_stream(<move> |mut _embrio_async_context_argument| {
+//             static move || {
+//                 if false {
+//                     yield ::core::task::Poll::Pending
+//                 }
+//                 {
+//                     yield ::core::task::Poll::Ready({ ... });
+//
+//                     yield ::core::task::Poll::Ready({ ... });
+//                 }
+//             }
+//         }
+//     }
+// }
 fn async_stream_block(expr_async: &mut syn::ExprAsync) -> Expr {
     struct ReplaceYields;
 
@@ -199,6 +255,22 @@ fn future_lifetime() -> Lifetime {
     Lifetime::new("'future", Span::call_site())
 }
 
+// Transforms a function of form
+//
+// ```
+// #[embiro_async]
+// async fn name(...) -> ReturnType {
+//    ...
+// }
+// ```
+//
+// into
+//
+// ```
+// fn name(...) -> impl Future<Output = ReturnType + ...> {
+//    ...
+// }
+// ```
 impl VisitMut for AsyncFnTransform {
     fn visit_type_reference_mut(&mut self, i: &mut TypeReference) {
         if i.lifetime.is_none() {
