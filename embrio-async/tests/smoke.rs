@@ -69,3 +69,21 @@ async fn anonymous_lifetime(f: &mut core::fmt::Formatter<'_>) {
 fn smoke_async_fn() {
     assert_eq!(block_on(a_wait_thing()), Either::Right("Hello, world!"));
 }
+
+#[allow(dead_code)]
+struct Foo(usize);
+
+impl Foo {
+    #[embrio_async]
+    async fn bar(&self) -> &usize {
+        &self.0
+    }
+    #[embrio_async]
+    async fn baz(&mut self) -> &usize {
+        &self.0
+    }
+    #[embrio_async]
+    async fn spam(&mut self, f: fn(&mut usize)) {
+        f(&mut self.0)
+    }
+}

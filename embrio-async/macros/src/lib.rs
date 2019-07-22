@@ -7,9 +7,10 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
 use syn::{
-    parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
-    ExprField, ExprYield, Generics, ItemFn, Lifetime, LifetimeDef, Member,
-    ReturnType, TypeImplTrait, TypeParam, TypeParamBound, TypeReference,
+    parse_macro_input, visit::Visit, visit_mut::VisitMut, ArgSelfRef, Block,
+    Expr, ExprField, ExprYield, Generics, ItemFn, Lifetime, LifetimeDef,
+    Member, ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
+    TypeReference,
 };
 
 // A `.await` expression is transformed into,
@@ -278,6 +279,12 @@ impl VisitMut for AsyncFnTransform {
         }
         self.visit_type_mut(&mut *i.elem);
     }
+    fn visit_arg_self_ref_mut(&mut self, i: &mut ArgSelfRef) {
+        if i.lifetime.is_none() {
+            i.lifetime = future_lifetime().into();
+        }
+    }
+    fn visit_type_bare_fn_mut(&mut self, _i: &mut TypeBareFn) {}
     fn visit_type_impl_trait_mut(&mut self, i: &mut TypeImplTrait) {
         for bound in i.bounds.iter_mut() {
             self.visit_type_param_bound_mut(bound);
