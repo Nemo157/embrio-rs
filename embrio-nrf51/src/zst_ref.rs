@@ -1,4 +1,4 @@
-use core::{fmt, intrinsics, marker::PhantomData, mem, ops::Deref};
+use core::{any::type_name, fmt, marker::PhantomData, mem, ops::Deref};
 
 pub struct ZstRef<'a, T: 'a> {
     marker: PhantomData<&'a T>,
@@ -35,7 +35,7 @@ impl<'a, T: 'a> Copy for ZstRef<'a, T> {}
 impl<'a, T: 'a> fmt::Debug for ZstRef<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str("ZstRef<")?;
-        f.write_str(unsafe { intrinsics::type_name::<T>() })?;
+        f.write_str(type_name::<T>())?;
         f.write_str(">")?;
         Ok(())
     }

@@ -3,7 +3,6 @@
     arbitrary_self_types,
     async_await,
     const_fn,
-    core_intrinsics,
     in_band_lifetimes,
     never_type,
     specialization
