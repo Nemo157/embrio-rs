@@ -327,10 +327,10 @@ impl VisitMut for AsyncFnTransform {
         let lifetimes = &self.original_lifetimes;
         *i = syn::parse2(match i {
             ReturnType::Default => quote! {
-                -> impl ::core::future::Future<Output = ()> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+                -> impl ::core::future::Future<Output = ()> #(+ ::embrio_async::Captures<#lifetimes>)* + ::embrio_async::PinnableFuture<FutureOutput = ()> + 'future
             },
             ReturnType::Type(_, ty) => quote! {
-                -> impl ::core::future::Future<Output = #ty> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+                -> impl ::core::future::Future<Output = #ty> #(+ ::embrio_async::Captures<#lifetimes>)* + ::embrio_async::PinnableFuture<FutureOutput = #ty> + 'future
             },
         }).unwrap();
     }

@@ -191,6 +191,17 @@ where
 impl<C, G> FutureImplState<C, G> where
     C: FnOnce(UnsafeContextRef) -> G,
 {
+    fn start(self, f: Pin<&mut FutureImpl<G>>) -> Pin<&mut PinnedFutureImpl<G>> {
+        // if you're able to move self, it has not yet been pinned and thus must be NotStarted
+        match self {
+            FutureImplState::NotStarted(c) => f.init(c),
+            #[cfg(debug_assertions)]
+            FutureImplState::Started(..) => unreachable!(),
+            #[cfg(not(debug_assertions))]
+            FutureImplState::Started(..) => unsafe { unreachable_unchecked() },
+        }
+    }
+
     fn started(self: Pin<&mut Self>) -> Pin<&mut PinnedFutureImpl<G>> {
         let this = unsafe { Pin::get_unchecked_mut(self) };
         match this {
@@ -256,6 +267,49 @@ where
     }
 }
 
+pub trait PinnableStream {
+    type StreamStorage: Default;
+    type StreamItem;
+    type Stream: Stream<Item=Self::StreamItem>;
+
+    fn pin(self, f: Pin<&mut Self::StreamStorage>) -> Pin<&mut Self::Stream> where Self: Sized;
+}
+
+pub trait PinnableFuture {
+    type FutureStorage: Default;
+    type FutureOutput;
+    type Future: Future<Output=Self::FutureOutput>;
+
+    fn pin(self, f: Pin<&mut Self::FutureStorage>) -> Pin<&mut Self::Future> where Self: Sized;
+}
+
+impl<C, G> PinnableFuture for FutureImplState<C, G> where
+    C: FnOnce(UnsafeContextRef) -> G,
+    G: Generator<Yield = Poll<!>>,
+{
+    type FutureStorage = FutureImpl<G>;
+    type FutureOutput = G::Return;
+    type Future = PinnedFutureImpl<G>;
+
+    fn pin(self, f: Pin<&mut Self::FutureStorage>) -> Pin<&mut Self::Future> {
+        self.start(f)
+    }
+}
+
+impl<C, G> PinnableStream for FutureImplState<C, G> where
+    C: FnOnce(UnsafeContextRef) -> G,
+    G: Generator<Return = ()>,
+    G::Yield: IsPoll,
+{
+    type StreamStorage = FutureImpl<G>;
+    type StreamItem = <G::Yield as IsPoll>::Ready;
+    type Stream = PinnedFutureImpl<G>;
+
+    fn pin(self, f: Pin<&mut Self::StreamStorage>) -> Pin<&mut Self::Stream> {
+        self.start(f)
+    }
+}
+
 /// `Send`-able wrapper around a `*mut *mut Context`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
@@ -277,7 +331,7 @@ impl UnsafeContextRef {
 
 unsafe impl Send for UnsafeContextRef {}
 
-pub unsafe fn make_future<C, G>(c: C) -> impl Future<Output = G::Return>
+pub unsafe fn make_future<C, G>(c: C) -> impl Future<Output = G::Return> + PinnableFuture<FutureOutput = G::Return>
 where
     C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<!>>,
@@ -285,7 +339,7 @@ where
     FutureImplState::NotStarted(c)
 }
 
-pub unsafe fn make_stream<T, C, G>(c: C) -> impl Stream<Item = T>
+pub unsafe fn make_stream<T, C, G>(c: C) -> impl Stream<Item = T> + PinnableStream<StreamItem = T>
 where
     C: FnOnce(UnsafeContextRef) -> G,
     G: Generator<Yield = Poll<T>, Return = ()>,
