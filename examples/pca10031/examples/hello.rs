@@ -5,7 +5,7 @@
 use {nrf51 as _, panic_abort as _};
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
-use embrio_nrf51::{interrupts, uart::BAUDRATEW, EmbrioNrf51};
+use embrio_nrf51::{uart::BAUDRATEW, EmbrioNrf51};
 
 #[entry]
 fn main() -> ! {
@@ -29,5 +29,3 @@ fn HardFault(ef: &ExceptionFrame) -> ! {
 fn DefaultHandler(irqn: i16) {
     panic!("Unhandled exception (IRQn = {})", irqn);
 }
-
-interrupts!();

@@ -28,19 +28,15 @@ pub struct EmbrioNrf51<'b> {
 }
 
 impl<'b> EmbrioNrf51<'b> {
-    pub fn new(
-        cortex_m: &'b mut cortex_m::Peripherals,
-        nrf51: &'b mut nrf51::Peripherals,
-    ) -> EmbrioNrf51<'b> {
+    pub fn new(nrf51: &'b mut nrf51::Peripherals) -> EmbrioNrf51<'b> {
         let pins = Pins::new(&mut nrf51.GPIO);
-        let uart = Uart::new(&mut nrf51.UART0, &mut cortex_m.NVIC);
+        let uart = Uart::new(&mut nrf51.UART0);
 
         EmbrioNrf51 { pins, uart }
     }
 
     pub fn take() -> Option<EmbrioNrf51<'static>> {
         struct StaticPeripherals {
-            cortex_m: cortex_m::Peripherals,
             nrf51: nrf51::Peripherals,
         }
 
@@ -60,7 +56,6 @@ impl<'b> EmbrioNrf51<'b> {
         });
 
         free(|c| {
-            let cortex_m = cortex_m::Peripherals::take()?;
             let nrf51 = nrf51::Peripherals::take()?;
 
             let context = CONTEXT.borrow(c);
@@ -79,31 +74,27 @@ impl<'b> EmbrioNrf51<'b> {
             // once
             let peripherals = unsafe { &mut *context.peripherals.get() };
 
-            peripherals.replace(StaticPeripherals { cortex_m, nrf51 });
+            peripherals.replace(StaticPeripherals { nrf51 });
 
             let peripherals = peripherals.as_mut().unwrap();
-            let cortex_m = &mut peripherals.cortex_m;
             let nrf51 = &mut peripherals.nrf51;
 
-            Some(EmbrioNrf51::new(cortex_m, nrf51))
+            Some(EmbrioNrf51::new(nrf51))
         })
     }
 }
 
-/// This **MUST** be called in any binary that depends on this crate, for some
-/// reason linking the interrupt handlers in when they're defined in a
-/// dependency doesn't work.
-#[macro_export]
-macro_rules! interrupts {
-    () => {
-        $crate::interrupt!(UART0, $crate::uart::Uart::interrupt);
-        $crate::interrupt!(
-            TIMER0,
-            $crate::timer::Timer::<nrf51::TIMER0>::interrupt
-        );
-        $crate::interrupt!(
-            TIMER1,
-            $crate::timer::Timer::<nrf51::TIMER1>::interrupt
-        );
-    };
+#[interrupt]
+fn UART0() {
+    uart::Uart::interrupt()
+}
+
+#[interrupt]
+fn TIMER0() {
+    timer::Timer::<nrf51::TIMER0>::interrupt()
+}
+
+#[interrupt]
+fn TIMER1() {
+    timer::Timer::<nrf51::TIMER1>::interrupt()
 }

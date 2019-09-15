@@ -53,7 +53,6 @@ struct TxContext {
 
 struct Context {
     uart: &'static mut UART0,
-    nvic: &'static mut NVIC,
     events: Events,
     rx_waker: Option<Waker>,
     tx: TxContext,
@@ -67,13 +66,12 @@ unsafe fn erase_lifetime<'a, T>(t: &'a mut T) -> &'static mut T {
 }
 
 impl<'b> Uart<'b> {
-    pub(crate) fn new(uart: &'b mut UART0, nvic: &'b mut NVIC) -> Self {
+    pub(crate) fn new(uart: &'b mut UART0) -> Self {
         free(|c| {
             let mut context = CONTEXT.borrow(c).borrow_mut();
             assert!(context.is_none());
             context.replace(Context {
                 uart: unsafe { erase_lifetime(uart) },
-                nvic: unsafe { erase_lifetime(nvic) },
                 events: Events {
                     rxdrdy: false,
                     txdrdy: false,
@@ -125,7 +123,7 @@ impl<'b> Uart<'b> {
             context.uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
             context.uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
-            context.nvic.enable(Interrupt::UART0);
+            unsafe { NVIC::unmask(Interrupt::UART0) };
         });
 
         (
@@ -173,7 +171,7 @@ impl<'b> Drop for Uart<'b> {
         free(|c| {
             let context = CONTEXT.borrow(c).borrow_mut().take().unwrap();
 
-            context.nvic.disable(Interrupt::UART0);
+            NVIC::mask(Interrupt::UART0);
 
             context.uart.tasks_stoptx.write(|w| unsafe { w.bits(1) });
             context.uart.tasks_stoprx.write(|w| unsafe { w.bits(1) });
