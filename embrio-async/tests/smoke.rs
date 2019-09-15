@@ -22,6 +22,15 @@ fn test_async_block() {
     assert_eq!(block_on(f2), 5);
 }
 
+#[embrio_async]
+#[test]
+fn test_async_pinned() {
+    let f = pinned!(async { 5usize });
+
+    let f2 = pinned!(async { f.await });
+    assert_eq!(block_on(f2), 5);
+}
+
 #[test]
 #[ergo_pin]
 #[embrio_async]
@@ -32,6 +41,16 @@ fn smoke_stream() {
     });
     assert_eq!(block_on(stream.next()), Some(5));
     assert_eq!(block_on(stream.next()), Some(6));
+    assert_eq!(block_on(stream.next()), None);
+}
+
+#[test]
+#[embrio_async]
+fn smoke_stream_pinned() {
+    let mut stream = pinned_stream!(async {
+        yield async { 5 }.pending_once().await;
+    });
+    assert_eq!(block_on(stream.next()), Some(5));
     assert_eq!(block_on(stream.next()), None);
 }
 
