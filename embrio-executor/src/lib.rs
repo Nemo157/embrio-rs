@@ -1,11 +1,5 @@
 #![no_std]
-#![feature(
-    arbitrary_self_types,
-    async_await,
-    cfg_target_has_atomic,
-    const_fn,
-    never_type
-)]
+#![feature(arbitrary_self_types, cfg_target_has_atomic, const_fn, never_type)]
 
 //! A `no_std` compatible, allocation-less, single-threaded futures executor;
 //! targeted at supporting embedded use-cases.
@@ -41,7 +35,7 @@
 //! # Examples
 //!
 //! ```
-//! #![feature(const_fn, async_await)]
+//! #![feature(const_fn)]
 //! use embrio_executor::Executor;
 //!
 //! static mut EXECUTOR: Executor = Executor::new();

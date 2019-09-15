@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(async_await, generators)]
+#![feature(generators)]
 
 use embrio_async::embrio_async;
 use ergo_pin::ergo_pin;
