@@ -19,13 +19,13 @@ static TIMER1_WAKER: Mutex<RefCell<Option<Waker>>> =
     Mutex::new(RefCell::new(None));
 
 impl Timer<TIMER1> {
-    pub fn timer1(timer: TIMER1, nvic: &mut NVIC) -> Timer<TIMER1> {
+    pub fn timer1(timer: TIMER1) -> Timer<TIMER1> {
         // 32bits @ 1MHz == max delay of ~1 hour 11 minutes
         timer.bitmode.write(|w| w.bitmode()._32bit());
         timer.prescaler.write(|w| unsafe { w.prescaler().bits(4) });
         timer.shorts.write(|w| w.compare0_clear().enabled());
 
-        nvic.enable(Interrupt::TIMER1);
+        unsafe { NVIC::unmask(Interrupt::TIMER1) };
 
         Timer(timer)
     }
