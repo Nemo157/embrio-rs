@@ -179,9 +179,20 @@ fn async_fn_impl(mut item: ItemFn) -> TokenStream {
         );
     }
 
+    let mut pinned = ExpandPinned::default();
+    syn::visit_mut::visit_block_mut(&mut pinned, &mut item.block);
+    let pin_attr = if pinned.expanded {
+        Some(quote!{ #[::ergo_pin::ergo_pin] })
+    } else {
+        None
+    };
+
     syn::visit_mut::visit_block_mut(&mut AsyncBlockTransform, &mut item.block);
 
-    quote!(#item)
+    quote! {
+        #pin_attr
+        #item
+    }
 }
 
 struct ExpandAwait;
@@ -195,6 +206,34 @@ impl syn::visit_mut::VisitMut for ExpandAwait {
         };
 
         *node = await_impl(base);
+    }
+}
+
+#[derive(Default)]
+struct ExpandPinned {
+    expanded: bool,
+}
+
+impl syn::visit_mut::VisitMut for ExpandPinned {
+    fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
+        syn::visit_mut::visit_expr_mut(self, node);
+        let (attrs, mac, pin_trait) = match node {
+            Expr::Macro(syn::ExprMacro { attrs, mac }) => if mac.path.is_ident("pinned") {
+                (attrs.clone(), mac.clone(), quote!(PinnableFuture))
+            } else if mac.path.is_ident("pinned_stream") {
+                (attrs.clone(), mac.clone(), quote!(PinnableStream))
+            } else {
+                return
+            },
+            _ => return,
+        };
+        self.expanded = true;
+        let tokens = mac.tokens;
+        let tokens: Expr = parse_quote!(#tokens);
+        *node = syn::parse_quote! {
+            #(#attrs)*
+            ::embrio_async::#pin_trait::pin(#tokens, pin!(::core::default::Default::default()))
+        };
     }
 }
 
