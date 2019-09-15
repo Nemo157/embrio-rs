@@ -2,7 +2,7 @@
 #![feature(generators)]
 
 use {
-    core::{cell::UnsafeCell, future::Future},
+    core::cell::UnsafeCell,
     embrio::io::{self, BufReader, Read, Write},
     embrio_async::embrio_async,
     pin_utils::pin_mut,

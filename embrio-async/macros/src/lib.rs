@@ -3,13 +3,13 @@ extern crate proc_macro;
 #[macro_use]
 extern crate syn;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use syn::{
-    parse_macro_input, visit::Visit, visit_mut::VisitMut, ArgSelfRef, Block,
-    Expr, ExprField, ExprYield, Generics, ItemFn, Lifetime, LifetimeDef,
-    Member, ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
+    parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
+    ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Receiver,
+    ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
     TypeReference,
 };
 
@@ -171,8 +171,8 @@ pub fn embrio_async(
 }
 
 fn async_fn_impl(mut item: ItemFn) -> TokenStream {
-    if item.asyncness.is_some() {
-        item.asyncness = None;
+    if item.sig.asyncness.is_some() {
+        item.sig.asyncness = None;
         syn::visit_mut::visit_item_fn_mut(
             &mut AsyncFnTransform::default(),
             &mut item,
@@ -190,11 +190,7 @@ impl syn::visit_mut::VisitMut for ExpandAwait {
     fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
         syn::visit_mut::visit_expr_mut(self, node);
         let base = match node {
-            syn::Expr::Field(ExprField {
-                member: Member::Named(member),
-                base,
-                ..
-            }) if member == "await" => &*base,
+            syn::Expr::Await(syn::ExprAwait { base, .. }) => &*base,
             _ => return,
         };
 
@@ -279,9 +275,13 @@ impl VisitMut for AsyncFnTransform {
         }
         self.visit_type_mut(&mut *i.elem);
     }
-    fn visit_arg_self_ref_mut(&mut self, i: &mut ArgSelfRef) {
-        if i.lifetime.is_none() {
-            i.lifetime = future_lifetime().into();
+    fn visit_receiver_mut(&mut self, i: &mut Receiver) {
+        match i {
+            Receiver {
+                reference: Some((_, lifetime)),
+                ..
+            } if lifetime.is_none() => *lifetime = future_lifetime().into(),
+            _ => (),
         }
     }
     fn visit_type_bare_fn_mut(&mut self, _i: &mut TypeBareFn) {}
@@ -327,10 +327,10 @@ impl VisitMut for AsyncFnTransform {
         let lifetimes = &self.original_lifetimes;
         *i = syn::parse2(match i {
             ReturnType::Default => quote! {
-                -> impl Future<Output = ()> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+                -> impl ::core::future::Future<Output = ()> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
             },
             ReturnType::Type(_, ty) => quote! {
-                -> impl Future<Output = #ty> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
+                -> impl ::core::future::Future<Output = #ty> #(+ ::embrio_async::Captures<#lifetimes>)* + 'future
             },
         }).unwrap();
     }

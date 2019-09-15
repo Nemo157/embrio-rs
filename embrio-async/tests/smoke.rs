@@ -1,7 +1,5 @@
 #![no_std]
-#![feature(async_await, generators)]
-
-use core::future::Future;
+#![feature(generators)]
 
 use embrio_async::embrio_async;
 use ergo_pin::ergo_pin;

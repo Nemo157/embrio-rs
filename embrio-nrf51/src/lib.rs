@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(
     arbitrary_self_types,
-    async_await,
     const_fn,
     in_band_lifetimes,
     never_type,
