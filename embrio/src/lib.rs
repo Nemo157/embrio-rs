@@ -22,7 +22,7 @@ pub mod timer {
 }
 
 pub mod io {
-    pub use embrio_core::io::{void, Cursor, Read, Write};
+    pub use embrio_core::io::{void, BufRead, Cursor, Read, Write};
     pub use embrio_util::io::{
         close, flush, read_exact, read_until, write_all, BufReader,
     };
