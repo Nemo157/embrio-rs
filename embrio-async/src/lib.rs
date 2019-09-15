@@ -78,31 +78,33 @@ enum FutureImplState<C, G> {
 // till the first yield point.
 
 struct FutureImpl<G> {
-    context: *mut task::Context<'static>,
+    context: MaybeUninit<*mut task::Context<'static>>,
     state: MaybeUninit<G>,
     _pinned: PhantomPinned,
 }
 
-impl<G> Default for FutureImpl<G> {
-    fn default() -> Self {
+pub trait UnsafeDefault: Sized {
+    unsafe fn unsafe_default() -> Self;
+}
+
+impl<G> UnsafeDefault for FutureImpl<G> {
+    unsafe fn unsafe_default() -> Self {
         Self::uninit()
     }
 }
 
 impl<G> Drop for FutureImpl<G> {
     fn drop(&mut self) {
-        if self.is_pinned() {
-            unsafe {
-                ptr::drop_in_place(self.state.as_mut_ptr());
-            }
+        unsafe {
+            ptr::drop_in_place(self.state.as_mut_ptr());
         }
     }
 }
 
 impl<G> FutureImpl<G> {
-    fn uninit() -> Self {
+    unsafe fn uninit() -> Self {
         FutureImpl {
-            context: ptr::null_mut(),
+            context: MaybeUninit::uninit(),
             state: MaybeUninit::uninit(),
             _pinned: PhantomPinned,
         }
@@ -111,20 +113,8 @@ impl<G> FutureImpl<G> {
     fn init<C: FnOnce(UnsafeContextRef) -> G>(self: Pin<&mut Self>, c: C) -> Pin<&mut PinnedFutureImpl<G>> {
         // calling this multiple times will leak a generator
         let this = unsafe { Pin::get_unchecked_mut(self) };
-        this.state = MaybeUninit::new(c(UnsafeContextRef(&mut this.context)));
-        this.context = 1 as usize as *mut _; // marker value used to indicate state is valid and can be dropped
+        this.state = MaybeUninit::new(c(UnsafeContextRef(this.context.as_mut_ptr())));
         unsafe { this.pinned_unchecked() }
-    }
-
-    fn is_pinned(&self) -> bool {
-        !self.context.is_null()
-    }
-
-    fn pinned(&mut self) -> Option<Pin<&mut PinnedFutureImpl<G>>> {
-        match self.is_pinned() {
-            true => Some(unsafe { self.pinned_unchecked() }),
-            false => None,
-        }
     }
 
     unsafe fn pinned_unchecked(&mut self) -> Pin<&mut PinnedFutureImpl<G>> {
@@ -141,7 +131,7 @@ impl<G> PinnedFutureImpl<G> {
     fn state(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Pin<&mut G> {
         unsafe {
             let this = Pin::get_unchecked_mut(self);
-            this.inner.context = loosen_context_lifetime(cx);
+            this.inner.context = MaybeUninit::new(loosen_context_lifetime(cx));
             Pin::new_unchecked(&mut *this.inner.state.as_mut_ptr())
         }
     }
@@ -205,10 +195,7 @@ impl<C, G> FutureImplState<C, G> where
     fn started(self: Pin<&mut Self>) -> Pin<&mut PinnedFutureImpl<G>> {
         let this = unsafe { Pin::get_unchecked_mut(self) };
         match this {
-            FutureImplState::Started(started) => match started.pinned() {
-                Some(pinned) => pinned,
-                None => panic!("poisoned"),
-            },
+            FutureImplState::Started(started) => unsafe { started.pinned_unchecked() },
             FutureImplState::NotStarted(..) => {
                 let (c, pinned) = unsafe {
                     let c = mem::replace(this, FutureImplState::Started(FutureImpl::uninit()));
@@ -268,7 +255,7 @@ where
 }
 
 pub trait PinnableStream {
-    type StreamStorage: Default;
+    type StreamStorage: UnsafeDefault;
     type StreamItem;
     type Stream: Stream<Item=Self::StreamItem>;
 
@@ -276,7 +263,7 @@ pub trait PinnableStream {
 }
 
 pub trait PinnableFuture {
-    type FutureStorage: Default;
+    type FutureStorage: UnsafeDefault;
     type FutureOutput;
     type Future: Future<Output=Self::FutureOutput>;
 

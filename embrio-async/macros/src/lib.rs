@@ -232,7 +232,7 @@ impl syn::visit_mut::VisitMut for ExpandPinned {
         let tokens: Expr = parse_quote!(#tokens);
         *node = syn::parse_quote! {
             #(#attrs)*
-            ::embrio_async::#pin_trait::pin(#tokens, pin!(::core::default::Default::default()))
+            ::embrio_async::#pin_trait::pin(#tokens, pin!(unsafe { ::embrio_async::UnsafeDefault::unsafe_default() }))
         };
     }
 }
