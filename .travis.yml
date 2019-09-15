@@ -15,7 +15,7 @@ install:
 script:
 - cargo test --all --exclude embrio-nrf51 --exclude pca10031
 - cargo build --target thumbv6m-none-eabi -p embrio-executor -p embrio-nrf51
-- cargo build --target thumbv6m-none-eabi -p pca10031 --examples
+- (cd examples/pca10031 && cargo build --target thumbv6m-none-eabi -p pca10031 --examples)
 - cargo build --target thumbv7m-none-eabi -p embrio-executor
 
 matrix:

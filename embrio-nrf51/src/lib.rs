@@ -90,20 +90,17 @@ impl<'b> EmbrioNrf51<'b> {
     }
 }
 
-/// This **MUST** be called in any binary that depends on this crate, for some
-/// reason linking the interrupt handlers in when they're defined in a
-/// dependency doesn't work.
-#[macro_export]
-macro_rules! interrupts {
-    () => {
-        $crate::interrupt!(UART0, $crate::uart::Uart::interrupt);
-        $crate::interrupt!(
-            TIMER0,
-            $crate::timer::Timer::<nrf51::TIMER0>::interrupt
-        );
-        $crate::interrupt!(
-            TIMER1,
-            $crate::timer::Timer::<nrf51::TIMER1>::interrupt
-        );
-    };
+#[interrupt]
+fn UART0() {
+    uart::Uart::interrupt()
+}
+
+#[interrupt]
+fn TIMER0() {
+    timer::Timer::<nrf51::TIMER0>::interrupt()
+}
+
+#[interrupt]
+fn TIMER1() {
+    timer::Timer::<nrf51::TIMER1>::interrupt()
 }
