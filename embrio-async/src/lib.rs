@@ -77,7 +77,7 @@ enum FutureImplState<C, G> {
 // `FutureImplState::NotStarted(C)` to `FutureImplState::Started(G)` and the generator executes
 // till the first yield point.
 struct FutureImpl<C, G> {
-    context: NonNull<task::Context<'static>>,
+    context: MaybeUninit<NonNull<task::Context<'static>>>,
     state: FutureImplState<C, G>,
     _pinned: PhantomPinned,
 }
@@ -115,12 +115,14 @@ where
         let this = unsafe { Pin::get_unchecked_mut(self) };
         if let FutureImplState::NotStarted(c) = &mut this.state {
             let c = unsafe { c.as_ptr().read() };
-            let gen = c(UnsafeContextRef(&mut this.context));
+            let gen = c(UnsafeContextRef(this.context.as_mut_ptr()));
             this.state = FutureImplState::Started(gen);
         }
 
         unsafe {
-            this.context = NonNull::from(loosen_context_lifetime(cx));
+            this.context
+                .as_mut_ptr()
+                .write(NonNull::from(loosen_context_lifetime(cx)));
         }
         if let FutureImplState::Started(g) = &mut this.state {
             unsafe { Pin::new_unchecked(g) }
@@ -194,7 +196,7 @@ where
     G: Generator<Yield = Poll<!>>,
 {
     FutureImpl {
-        context: NonNull::dangling(),
+        context: MaybeUninit::uninit(),
         state: FutureImplState::NotStarted(MaybeUninit::new(c)),
         _pinned: PhantomPinned,
     }
@@ -206,7 +208,7 @@ where
     G: Generator<Yield = Poll<T>, Return = ()>,
 {
     FutureImpl {
-        context: NonNull::dangling(),
+        context: MaybeUninit::uninit(),
         state: FutureImplState::NotStarted(MaybeUninit::new(c)),
         _pinned: PhantomPinned,
     }
