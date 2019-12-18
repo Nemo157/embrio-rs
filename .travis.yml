@@ -11,12 +11,14 @@ os:
 install:
 - rustup target add thumbv6m-none-eabi
 - rustup target add thumbv7m-none-eabi
+- rustup target add thumbv7em-none-eabi
 
 script:
 - cargo test --all --exclude embrio-nrf51 --exclude pca10031
 - cargo build --target thumbv6m-none-eabi -p embrio-executor -p embrio-nrf51
 - (cd examples/pca10031 && cargo build --target thumbv6m-none-eabi -p pca10031 --examples)
 - cargo build --target thumbv7m-none-eabi -p embrio-executor
+- cargo build --target thumbv7em-none-eabi -p embrio-executor
 
 matrix:
   include:
