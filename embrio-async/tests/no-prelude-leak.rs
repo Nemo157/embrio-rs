@@ -1,6 +1,6 @@
 #![no_std]
 #![no_implicit_prelude]
-#![feature(generators, core_panic_info)]
+#![feature(generators)]
 
 extern crate embrio_async;
 

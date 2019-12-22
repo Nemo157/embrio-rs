@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+// workaround https://github.com/rust-embedded/cortex-m-rt/issues/225
+#![allow(clippy::missing_safety_doc)]
 
 // Link only imports, for panic implementation and interrupt vectors
 use {nrf51 as _, panic_abort as _};
