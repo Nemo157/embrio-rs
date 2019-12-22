@@ -18,7 +18,7 @@ use crate::gpio::{
     mode::{Floating, Input, Output, PushPull},
 };
 
-pub use nrf51::uart0::baudrate::BAUDRATEW;
+pub use nrf51::uart0::baudrate::BAUDRATE_A;
 
 #[derive(Debug)]
 pub struct Uart<'b> {
@@ -95,7 +95,7 @@ impl<'b> Uart<'b> {
         &'a mut self,
         txpin: &'a mut gpio::Pin<'b, Output<PushPull>>,
         rxpin: &'a mut gpio::Pin<'b, Input<Floating>>,
-        speed: BAUDRATEW,
+        speed: BAUDRATE_A,
     ) -> (Tx<'a, 'b>, Rx<'a, 'b>)
     where
         'b: 'a,

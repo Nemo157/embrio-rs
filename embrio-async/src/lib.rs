@@ -178,6 +178,8 @@ pub struct UnsafeContextRef(*mut NonNull<task::Context<'static>>);
 impl UnsafeContextRef {
     /// Get a reference to the wrapped context
     ///
+    /// # Safety
+    ///
     /// This must only be called from the `await!` macro within the
     /// `make_future` function, which will in turn only be run when the
     /// `FutureImpl` has been observed to be in a `Pin`, guaranteeing that the
@@ -190,6 +192,12 @@ impl UnsafeContextRef {
 
 unsafe impl Send for UnsafeContextRef {}
 
+/// # Safety
+///
+/// This must only be called by the `#[embrio_async]` proc-macro.
+///
+/// (The provided function and generator must obey safety invariants documented
+/// elsewhere).
 pub unsafe fn make_future<C, G>(c: C) -> impl Future<Output = G::Return>
 where
     C: FnOnce(UnsafeContextRef) -> G,
@@ -202,6 +210,12 @@ where
     }
 }
 
+/// # Safety
+///
+/// This must only be called by the `#[embrio_async]` proc-macro.
+///
+/// (The provided function and generator must obey safety invariants documented
+/// elsewhere).
 pub unsafe fn make_stream<T, C, G>(c: C) -> impl Stream<Item = T>
 where
     C: FnOnce(UnsafeContextRef) -> G,

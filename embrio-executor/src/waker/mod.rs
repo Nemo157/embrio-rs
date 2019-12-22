@@ -10,12 +10,12 @@ mod armv7m;
 #[cfg(armv7m)]
 pub use self::armv7m::EmbrioWaker;
 
-#[cfg(all(target_has_atomic = "cas", not(armv7m)))]
+#[cfg(all(target_has_atomic = "ptr", not(armv7m)))]
 mod default;
-#[cfg(all(target_has_atomic = "cas", not(armv7m)))]
+#[cfg(all(target_has_atomic = "ptr", not(armv7m)))]
 pub use self::default::EmbrioWaker;
 
-#[cfg(not(any(armv6m, armv7m, target_has_atomic = "cas")))]
+#[cfg(not(any(armv6m, armv7m, target_has_atomic = "ptr")))]
 compile_error!("Not a supported target");
 
 static EMBRIO_WAKER_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(

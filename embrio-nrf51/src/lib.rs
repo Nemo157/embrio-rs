@@ -6,6 +6,8 @@
     never_type,
     specialization
 )]
+// workaround https://github.com/rust-embedded/cortex-m-rt/issues/225
+#![allow(clippy::missing_safety_doc)]
 
 mod zst_ref;
 
@@ -16,11 +18,9 @@ pub mod uart;
 use core::{cell::UnsafeCell, ptr};
 
 use cortex_m::interrupt::{free, Mutex};
+use nrf51::interrupt;
 
 use self::{gpio::Pins, uart::Uart};
-
-#[doc(hidden)]
-pub use nrf51::interrupt;
 
 pub struct EmbrioNrf51<'b> {
     pub pins: Pins<'b>,
