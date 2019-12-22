@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 cortex-m = "0.6.1"
-nrf51 = "0.6.0"
+cortex-m-rt = "0.6.1"
+nrf51 = "0.7.0"
 
 [dependencies.embrio-core]
 path = "../embrio-core"
@@ -14,12 +15,12 @@ path = "../embrio-core"
 [dependencies.embrio-executor]
 path = "../embrio-executor"
 
-[dependencies.futures-core-preview]
-version = "0.3.0-alpha.18"
+[dependencies.futures-core]
+version = "0.3.1"
 default-features = false
-features = ["nightly", "cfg-target-has-atomic"]
+features = ["unstable", "cfg-target-has-atomic"]
 
-[dependencies.futures-util-preview]
-version = "0.3.0-alpha.18"
+[dependencies.futures-util]
+version = "0.3.1"
 default-features = false
-features = ["nightly", "cfg-target-has-atomic"]
+features = ["unstable", "cfg-target-has-atomic"]

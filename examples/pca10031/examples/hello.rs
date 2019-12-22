@@ -5,7 +5,7 @@
 use {nrf51 as _, panic_abort as _};
 
 use cortex_m_rt::{entry, exception, ExceptionFrame};
-use embrio_nrf51::{uart::BAUDRATEW, EmbrioNrf51};
+use embrio_nrf51::{uart::BAUDRATE_A, EmbrioNrf51};
 
 #[entry]
 fn main() -> ! {
@@ -15,7 +15,7 @@ fn main() -> ! {
     let (tx, rx) =
         nrf51
             .uart
-            .init(&mut txpin, &mut rxpin, BAUDRATEW::BAUD115200);
+            .init(&mut txpin, &mut rxpin, BAUDRATE_A::BAUD115200);
     unsafe { hello::main(rx, tx) }.unwrap();
     unreachable!()
 }

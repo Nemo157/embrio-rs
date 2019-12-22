@@ -7,8 +7,8 @@ publish = false
 
 [dependencies]
 hello = { path = "../apps/hello" }
-cortex-m-rt = { version = "0.6.10" }
-nrf51 = { version = "0.6.0", features = ["rt"] }
+cortex-m-rt = "0.6.11"
+nrf51 = { version = "0.7.0", features = ["rt"] }
 embrio = { path = "../../embrio" }
 embrio-nrf51 = { path = "../../embrio-nrf51" }
-panic-abort = { version = "0.3.1" }
+panic-abort = "0.3.2"
