@@ -22,7 +22,7 @@ pub use embrio_async_macros::embrio_async;
 pub trait Captures<'a> {}
 impl<'a, T: ?Sized> Captures<'a> for T {}
 
-pub trait IsPoll {
+trait IsPoll {
     type Ready;
 
     fn into_poll(self) -> Poll<Self::Ready>;
@@ -147,8 +147,7 @@ where
 
 pub unsafe fn make_stream<T, G>(generator: G) -> impl Stream<Item = T>
 where
-    G: Generator<UnsafeContextRef, Return = ()>,
-    <G as Generator<UnsafeContextRef>>::Yield: IsPoll<Ready = T>,
+    G: Generator<UnsafeContextRef, Return = (), Yield = Poll<T>>,
 {
     FutureImpl { generator }
 }
