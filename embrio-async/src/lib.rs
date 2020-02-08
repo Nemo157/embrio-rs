@@ -138,6 +138,11 @@ impl UnsafeContextRef {
 
 unsafe impl Send for UnsafeContextRef {}
 
+/// # Safety
+///
+/// This must only be called by the `#[embrio_async]` proc-macro.
+///
+/// (The provided generator must obey safety invariants documented elsewhere).
 pub unsafe fn make_future<G>(generator: G) -> impl Future<Output = G::Return>
 where
     G: Generator<UnsafeContextRef, Yield = Poll<!>>,
@@ -145,6 +150,11 @@ where
     FutureImpl { generator }
 }
 
+/// # Safety
+///
+/// This must only be called by the `#[embrio_async]` proc-macro.
+///
+/// (The provided generator must obey safety invariants documented elsewhere).
 pub unsafe fn make_stream<T, G>(generator: G) -> impl Stream<Item = T>
 where
     G: Generator<UnsafeContextRef, Return = (), Yield = Poll<T>>,
