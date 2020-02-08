@@ -7,12 +7,10 @@
 
 use core::{
     future::Future,
-    hint::unreachable_unchecked,
-    marker::PhantomPinned,
-    mem::{self, MaybeUninit},
+    mem,
     ops::{Generator, GeneratorState},
     pin::Pin,
-    ptr::{self, NonNull},
+    ptr::NonNull,
     task::{self, Poll},
 };
 use futures_core::stream::Stream;
@@ -23,18 +21,6 @@ pub use embrio_async_macros::embrio_async;
 /// Dummy trait for capturing additional lifetime bounds on `impl Trait`s
 pub trait Captures<'a> {}
 impl<'a, T: ?Sized> Captures<'a> for T {}
-
-unsafe fn loosen_context_lifetime<'a>(
-    context: &'a mut task::Context<'_>,
-) -> &'a mut task::Context<'static> {
-    mem::transmute(context)
-}
-
-unsafe fn constrain_context_lifetime<'a>(
-    context: &'a mut task::Context<'static>,
-) -> &'a mut task::Context<'a> {
-    mem::transmute(context)
-}
 
 trait IsPoll {
     type Ready;
@@ -52,11 +38,6 @@ impl<T> IsPoll for Poll<T> {
 
 // `C` is a closure that is passed to `::embrio_async::make_future`. `G` is a generator that is
 // returned by `C`.
-enum FutureImplState<C, G> {
-    NotStarted(MaybeUninit<C>),
-    Started(G),
-}
-
 // An `async` block is tranformed into a `FutureImpl`, where initially `C` is a closure of the form
 // below, which when called returns a generator `G`.
 //
@@ -76,66 +57,16 @@ enum FutureImplState<C, G> {
 // when `FutureImpl` is first `poll`ed (or `poll_next`ed), `FutureImpl`'s `state` field goes from
 // `FutureImplState::NotStarted(C)` to `FutureImplState::Started(G)` and the generator executes
 // till the first yield point.
-struct FutureImpl<C, G> {
-    context: MaybeUninit<NonNull<task::Context<'static>>>,
-    state: FutureImplState<C, G>,
-    _pinned: PhantomPinned,
-}
-
-impl<C, G> Drop for FutureImpl<C, G> {
-    fn drop(&mut self) {
-        if let FutureImplState::NotStarted(c) = &mut self.state {
-            // MaybeUninit implies ManuallyDrop, but we must always be initialized
-            unsafe { ptr::drop_in_place(c.as_mut_ptr()) }
-        }
+pin_project_lite::pin_project! {
+    struct FutureImpl<G> {
+        #[pin]
+        generator: G,
     }
 }
 
-unsafe impl<C, G> Send for FutureImpl<C, G>
+impl<G> Future for FutureImpl<G>
 where
-    C: Send,
-    G: Send,
-{
-}
-
-impl<C, G> FutureImpl<C, G>
-where
-    C: FnOnce(UnsafeContextRef) -> G,
-{
-    fn state(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Pin<&mut G> {
-        // Safety: Trust me 😉
-        // TODO: Actual reasons this is safe (briefly, we trust the function
-        // passed to make_future to only use the pointer we gave it when we
-        // resume the generator it returned, during that time we have updated it
-        // to the context reference we just got, the pointer is a
-        // self-reference from the generator back into our state, but we don't
-        // create it until we have observed ourselves in a pin so we know we
-        // can't have moved between creating the pointer and the generator ever
-        // using the pointer so it is safe to dereference).
-        let this = unsafe { Pin::get_unchecked_mut(self) };
-        if let FutureImplState::NotStarted(c) = &mut this.state {
-            let c = unsafe { c.as_ptr().read() };
-            let gen = c(UnsafeContextRef(this.context.as_mut_ptr()));
-            this.state = FutureImplState::Started(gen);
-        }
-
-        unsafe {
-            this.context
-                .as_mut_ptr()
-                .write(NonNull::from(loosen_context_lifetime(cx)));
-        }
-        if let FutureImplState::Started(g) = &mut this.state {
-            unsafe { Pin::new_unchecked(g) }
-        } else {
-            unsafe { unreachable_unchecked() }
-        }
-    }
-}
-
-impl<C, G> Future for FutureImpl<C, G>
-where
-    C: FnOnce(UnsafeContextRef) -> G,
-    G: Generator<Yield = Poll<!>>,
+    G: Generator<UnsafeContextRef, Yield = Poll<!>>,
 {
     type Output = G::Return;
 
@@ -143,18 +74,17 @@ where
         self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.state(cx).resume() {
+        match self.project().generator.resume(cx.into()) {
             GeneratorState::Yielded(Poll::Pending) => Poll::Pending,
             GeneratorState::Complete(x) => Poll::Ready(x),
         }
     }
 }
 
-impl<C, G> Stream for FutureImpl<C, G>
+impl<G> Stream for FutureImpl<G>
 where
-    C: FnOnce(UnsafeContextRef) -> G,
-    G: Generator<Return = ()>,
-    G::Yield: IsPoll,
+    G: Generator<UnsafeContextRef, Return = ()>,
+    <G as Generator<UnsafeContextRef>>::Yield: IsPoll,
 {
     type Item = <G::Yield as IsPoll>::Ready;
 
@@ -162,18 +92,18 @@ where
         self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match self.state(cx).resume() {
+        match self.project().generator.resume(cx.into()) {
             GeneratorState::Yielded(x) => x.into_poll().map(Some),
             GeneratorState::Complete(()) => Poll::Ready(None),
         }
     }
 }
 
-/// `Send`-able wrapper around a `*mut *mut Context`
+/// `Send`-able wrapper around a `*mut Context`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
 /// provided there are no other `!Send` things in the body of the generator.
-pub struct UnsafeContextRef(*mut NonNull<task::Context<'static>>);
+pub struct UnsafeContextRef(NonNull<task::Context<'static>>);
 
 impl UnsafeContextRef {
     /// Get a reference to the wrapped context
@@ -186,7 +116,25 @@ impl UnsafeContextRef {
     /// outer `*const` remains valid.
     // https://github.com/rust-lang/rust-clippy/issues/2906
     pub unsafe fn get_context(&mut self) -> &mut task::Context<'_> {
-        constrain_context_lifetime((*self.0).as_mut())
+        unsafe fn reattach_context_lifetimes<'a>(
+            context: NonNull<task::Context<'static>>,
+        ) -> &'a mut task::Context<'a> {
+            mem::transmute(context)
+        }
+
+        reattach_context_lifetimes(self.0)
+    }
+}
+
+impl From<&mut task::Context<'_>> for UnsafeContextRef {
+    fn from(cx: &mut task::Context<'_>) -> Self {
+        fn eliminate_context_lifetimes(
+            context: &mut task::Context<'_>,
+        ) -> NonNull<task::Context<'static>> {
+            unsafe { mem::transmute(context) }
+        }
+
+        UnsafeContextRef(eliminate_context_lifetimes(cx))
     }
 }
 
@@ -196,50 +144,34 @@ unsafe impl Send for UnsafeContextRef {}
 ///
 /// This must only be called by the `#[embrio_async]` proc-macro.
 ///
-/// (The provided function and generator must obey safety invariants documented
-/// elsewhere).
-pub unsafe fn make_future<C, G>(c: C) -> impl Future<Output = G::Return>
+/// (The provided generator must obey safety invariants documented elsewhere).
+pub unsafe fn make_future<G>(generator: G) -> impl Future<Output = G::Return>
 where
-    C: FnOnce(UnsafeContextRef) -> G,
-    G: Generator<Yield = Poll<!>>,
+    G: Generator<UnsafeContextRef, Yield = Poll<!>>,
 {
-    FutureImpl {
-        context: MaybeUninit::uninit(),
-        state: FutureImplState::NotStarted(MaybeUninit::new(c)),
-        _pinned: PhantomPinned,
-    }
+    FutureImpl { generator }
 }
 
 /// # Safety
 ///
 /// This must only be called by the `#[embrio_async]` proc-macro.
 ///
-/// (The provided function and generator must obey safety invariants documented
-/// elsewhere).
-pub unsafe fn make_stream<T, C, G>(c: C) -> impl Stream<Item = T>
+/// (The provided generator must obey safety invariants documented elsewhere).
+pub unsafe fn make_stream<T, G>(generator: G) -> impl Stream<Item = T>
 where
-    C: FnOnce(UnsafeContextRef) -> G,
-    G: Generator<Yield = Poll<T>, Return = ()>,
+    G: Generator<UnsafeContextRef, Return = (), Yield = Poll<T>>,
 {
-    FutureImpl {
-        context: MaybeUninit::uninit(),
-        state: FutureImplState::NotStarted(MaybeUninit::new(c)),
-        _pinned: PhantomPinned,
-    }
+    FutureImpl { generator }
 }
 
 fn _check_send() -> impl Future<Output = u8> + Send {
     unsafe {
-        make_future(move |lw_ref| {
-            move || {
-                if false {
-                    yield Poll::Pending
-                }
-
-                let _lw_ref = lw_ref;
-
-                5
+        make_future(move |_: UnsafeContextRef| {
+            if false {
+                let _ = yield Poll::Pending;
             }
+
+            5
         })
     }
 }
