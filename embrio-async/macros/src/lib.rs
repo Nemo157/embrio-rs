@@ -49,7 +49,7 @@ fn await_impl(input: &Expr) -> Expr {
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
             }
-            yield ::core::task::Poll::Pending;
+            #arg = yield ::core::task::Poll::Pending;
         }
     });
     syn::parse2(expr).unwrap()
@@ -85,11 +85,9 @@ fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_future(#mv |mut #arg| {
-                static move || {
-                    if false { yield ::core::task::Poll::Pending }
-                    #block
-                }
+            ::embrio_async::make_future(static #mv |mut #arg: ::embrio_async::UnsafeContextRef| {
+                if false { #arg = yield ::core::task::Poll::Pending; }
+                #block
             })
         }
     });
@@ -149,11 +147,9 @@ fn async_stream_block(expr_async: &mut syn::ExprAsync) -> Expr {
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_stream(#capture |mut #arg| {
-                static move || {
-                    if false { yield ::core::task::Poll::Pending }
-                    #block
-                }
+            ::embrio_async::make_stream(static #capture |mut #arg: ::embrio_async::UnsafeContextRef| {
+                if false { #arg = yield ::core::task::Poll::Pending; }
+                #block
             })
         }
     });
