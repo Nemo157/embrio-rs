@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 cortex-m = "0.6.1"
 cortex-m-rt = "0.6.1"
-nrf51 = "0.7.0"
+nrf51 = "0.9.0"
 
 [dependencies.embrio-core]
 path = "../embrio-core"
