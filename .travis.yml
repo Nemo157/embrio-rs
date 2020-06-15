@@ -14,7 +14,7 @@ install:
 - rustup target add thumbv7em-none-eabi
 
 script:
-- cargo test --all --exclude embrio-nrf51 --exclude pca10031
+- cargo test --all --exclude embrio-nrf51 --exclude pca10031 --exclude microbit
 - cargo build --target thumbv6m-none-eabi -p embrio-executor -p embrio-nrf51
 - (cd examples/pca10031 && cargo build --target thumbv6m-none-eabi -p pca10031 --examples)
 - cargo build --target thumbv7m-none-eabi -p embrio-executor
@@ -33,12 +33,12 @@ matrix:
     - rustup component add clippy
     - rustup target add thumbv6m-none-eabi
     script:
-    - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 --all-targets -- -Dwarnings
+    - cargo clippy --all --exclude embrio-nrf51 --exclude pca10031 --exclude microbit --all-targets -- -Dwarnings
     - cargo clippy --target thumbv6m-none-eabi -p embrio-nrf51 -p pca10031 --examples -- -Dwarnings
 
   - name: doc
     script:
-    - cargo doc --all --exclude embrio-nrf51 --exclude pca10031 --no-deps
+    - cargo doc --all --exclude embrio-nrf51 --exclude pca10031 --exclude microbit --no-deps
 
 branches:
   only: [staging, trying, master]

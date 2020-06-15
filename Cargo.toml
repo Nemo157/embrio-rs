@@ -11,6 +11,7 @@ members = [
   "examples/apps/hello",
   "examples/local",
   "examples/pca10031",
+  "examples/microbit",
 ]
 
 default-members = ["embrio"]
