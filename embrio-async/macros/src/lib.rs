@@ -8,9 +8,10 @@ use quote::quote;
 
 use syn::{
     parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
-    ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Pat, PatType,
-    PathArguments, PathSegment, Receiver, ReturnType, Type, TypeBareFn,
-    TypeImplTrait, TypeParam, TypeParamBound, TypePath, TypeReference,
+    ExprParen, ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Pat,
+    PatType, PathArguments, PathSegment, Receiver, ReturnType, Type,
+    TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound, TypePath,
+    TypeReference,
 };
 
 // A `.await` expression is transformed into,
@@ -172,6 +173,14 @@ fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
             match i {
                 Expr::Closure(_) => {
                     // Don't descend into closures
+                }
+                Expr::Paren(ExprParen { expr, .. })
+                    if matches!(expr.as_ref(), Expr::Yield(_)) =>
+                {
+                    // `yield ()` is sometimes parsed as `(yield ())`, remove
+                    // the unnecessary parentheses
+                    *i = expr.as_ref().clone();
+                    self.visit_expr_mut(i);
                 }
                 Expr::Yield(node) => {
                     assert!(
