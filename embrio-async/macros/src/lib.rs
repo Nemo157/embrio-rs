@@ -230,9 +230,10 @@ fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
     );
     // Pretty hacky, use the type of an unnamed input as the item type and the
     // return type as the result type to derive the error from
+    let underscore_pat: Pat = syn::parse_quote!(_);
     let input_ty = match closure.inputs.first() {
         Some(pat) => match pat {
-            Pat::Type(PatType { pat, ty, .. }) if &*pat == &syn::parse_quote!(_) => {
+            Pat::Type(PatType { pat, ty, .. }) if **pat == underscore_pat => {
                 ty.clone()
             }
             _ => panic!("a sink argument must be `_: T` where `T` is the input item type"),
