@@ -43,20 +43,19 @@ fn smoke_stream() {
     }
 }
 
+#[embrio_async]
 #[test]
 fn smoke_sink() {
     let future = async {
         let mut sum = 0;
         {
             let slow = async move |i| i;
-            let stream = ::embrio_async::async_stream_block! {
+            let stream = async {
                 yield async { slow(5) }.await;
                 yield async { slow(6) }.await;
             };
-            let sink = ::embrio_async::async_sink_block! {
-                while let ::core::option::Option::Some(future) =
-                    ::embrio_async::await_input!()
-                {
+            let sink = async |yield input| {
+                while let ::core::option::Option::Some(future) = input.await {
                     sum += future.await;
                 }
                 sum += 7;
@@ -76,23 +75,22 @@ fn smoke_sink() {
     }
 }
 
+#[embrio_async]
 #[test]
 fn smoke_sink_typed() {
     let future = async {
         let mut sum = 0;
         {
-            let stream = ::embrio_async::async_stream_block! {
+            let stream = async {
                 yield 5;
                 yield 6;
             };
-            let sink = ::embrio_async::async_sink_block!(u32 -> {
-                while let ::core::option::Option::Some(value) =
-                    ::embrio_async::await_input!()
-                {
+            let sink = async |yield input: u32| {
+                while let ::core::option::Option::Some(value) = input.await {
                     sum += value;
                 }
                 sum += 7;
-            });
+            };
             ::pin_utils::pin_mut!(sink);
             let stream = ::futures::stream::StreamExt::map(
                 stream,

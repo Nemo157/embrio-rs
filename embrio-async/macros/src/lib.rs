@@ -10,7 +10,7 @@ use syn::{
     parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
     ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Receiver,
     ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
-    TypeReference,
+    TypeReference, Pat, PatIdent,
 };
 
 // A `.await` expression is transformed into,
@@ -200,6 +200,13 @@ struct AsyncBlockTransform;
 
 impl VisitMut for AsyncBlockTransform {
     fn visit_expr_mut(&mut self, i: &mut Expr) {
+        let yield_pat = Pat::Ident(PatIdent {
+            attrs: Vec::new(),
+            by_ref: None,
+            mutability: None,
+            ident: Ident::new("yield", Span::call_site()),
+            subpat: None,
+        });
         syn::visit_mut::visit_expr_mut(self, i);
         let fut = match i {
             Expr::Async(expr_async) => {
@@ -207,6 +214,25 @@ impl VisitMut for AsyncBlockTransform {
                     async_stream_block(expr_async)
                 } else {
                     async_block(expr_async)
+                }
+            }
+            Expr::Closure(closure) => {
+                if closure.asyncness.is_some() {
+                    if let Some(Pat::Ident(PatIdent { ident, .. })) = closure.inputs.first() {
+                        if ident == "yield" {
+                            dbg!("async yield");
+                            panic!()
+                        } else {
+                            eprintln!("async non-yield pat: {:?}", ident);
+                            panic!()
+                        }
+                    } else {
+                        dbg!("async non-pat");
+                        panic!()
+                    }
+                } else {
+                    dbg!(closure);
+                    panic!()
                 }
             }
             _ => {
