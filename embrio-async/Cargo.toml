@@ -4,9 +4,14 @@ version = "0.1.0"
 authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
+[features]
+default = ["sink"]
+sink = ["futures-sink"]
+
 [dependencies]
 embrio-async-macros = { path = "macros" }
 futures-core = { version = "0.3.1", default-features = false }
+futures-sink = { version = "0.3.0", default-features = false, optional = true }
 pin-project-lite = "0.1.4"
 
 [dev-dependencies]

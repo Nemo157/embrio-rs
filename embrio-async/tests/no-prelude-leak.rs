@@ -1,6 +1,7 @@
 #![no_std]
 #![no_implicit_prelude]
-#![feature(generators)]
+#![feature(generators, impl_trait_in_bindings, async_closure, never_type)]
+#![allow(incomplete_features)]
 
 extern crate embrio_async;
 
@@ -40,5 +41,74 @@ fn smoke_stream() {
     {
         use ::core::panic;
         ::core::assert_eq!(::futures::executor::block_on(future), 11);
+    }
+}
+
+#[embrio_async]
+#[test]
+fn smoke_sink() {
+    let future = async {
+        let mut sum = 0;
+        {
+            let slow = move |i| async move { i };
+            let stream = async {
+                yield async { slow(5) }.await;
+                yield async { slow(6) }.await;
+            };
+            let sink = async || -> ::core::result::Result<(), !> {
+                while let ::core::option::Option::Some(future) = yield () {
+                    sum += future.await;
+                }
+                sum += 7;
+                ::core::result::Result::Ok(())
+            };
+            ::pin_utils::pin_mut!(sink);
+            let stream = ::futures::stream::StreamExt::map(
+                stream,
+                ::core::result::Result::Ok,
+            );
+            ::futures::stream::StreamExt::forward(stream, sink)
+                .await
+                .unwrap();
+        }
+        sum
+    };
+    {
+        use ::core::panic;
+        ::core::assert_eq!(::futures::executor::block_on(future), 18);
+    }
+}
+
+#[embrio_async]
+#[test]
+fn smoke_sink_typed() {
+    let future = async {
+        let mut sum = 0;
+        {
+            let stream = async {
+                yield ::core::result::Result::Ok(5);
+                yield ::core::result::Result::Ok(6);
+            };
+            let sink = async |_: ::core::result::Result<u32, u64>| -> ::core::result::Result<(), u64> {
+                while let ::core::option::Option::Some(value) = yield () {
+                    sum += value?;
+                }
+                sum += 7;
+                ::core::result::Result::Ok(())
+            };
+            ::pin_utils::pin_mut!(sink);
+            let stream = ::futures::stream::StreamExt::map(
+                stream,
+                ::core::result::Result::Ok,
+            );
+            ::futures::stream::StreamExt::forward(stream, sink)
+                .await
+                .unwrap();
+        }
+        sum
+    };
+    {
+        use ::core::panic;
+        ::core::assert_eq!(::futures::executor::block_on(future), 18);
     }
 }

@@ -8,8 +8,9 @@ use quote::quote;
 
 use syn::{
     parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
-    ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Receiver,
-    ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
+    ExprParen, ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Pat,
+    PatType, PathArguments, PathSegment, Receiver, ReturnType, Type,
+    TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound, TypePath,
     TypeReference,
 };
 
@@ -32,8 +33,7 @@ use syn::{
 //         yield ::core::task::Poll::Pending;
 //     }
 // }
-fn await_impl(input: &Expr) -> Expr {
-    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
+fn await_impl(context_arg: &Ident, input: &Expr) -> Expr {
     let expr = quote!({
         let mut pinned = #input;
         loop {
@@ -44,12 +44,12 @@ fn await_impl(input: &Expr) -> Expr {
             // safe for reasons explained in the embrio-async safety notes.
             let polled = unsafe {
                 let pin = ::core::pin::Pin::new_unchecked(&mut pinned);
-                ::core::future::Future::poll(pin, #arg.get_context())
+                ::core::future::Future::poll(pin, #context_arg.get_context())
             };
             if let ::core::task::Poll::Ready(x) = polled {
                 break x;
             }
-            #arg = yield ::core::task::Poll::Pending;
+            #context_arg = yield ::core::task::Poll::Pending;
         }
     });
     syn::parse2(expr).unwrap()
@@ -75,19 +75,21 @@ fn await_impl(input: &Expr) -> Expr {
 // `static` in `static move || { ... }` means that the generator may hold self-references across
 // yield points.
 fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
+    let context_arg =
+        Ident::new("_embrio_async_context_argument", Span::call_site());
     let block = &mut expr_async.block;
     let mv = &expr_async.capture;
-    syn::visit_mut::visit_block_mut(&mut ExpandAwait, block);
-    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
+    syn::visit_mut::visit_block_mut(&mut ExpandAwait(&context_arg), block);
+    let stmts = &block.stmts;
     let tokens = quote!({
         // Safety: We trust users not to come here, see that argument name we
         // generated above and use that in their code to break our other safety
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_future(static #mv |mut #arg: ::embrio_async::UnsafeContextRef| {
-                if false { #arg = yield ::core::task::Poll::Pending; }
-                #block
+            ::embrio_async::make_future(static #mv |mut #context_arg: ::embrio_async::UnsafeContextRef| {
+                if false { #context_arg = yield ::core::task::Poll::Pending; }
+                #(#stmts)*
             })
         }
     });
@@ -124,7 +126,7 @@ fn async_stream_block(expr_async: &mut syn::ExprAsync) -> Expr {
                 .take()
                 .unwrap_or_else(|| syn::parse_str("()").unwrap());
             node.expr = Some(Box::new(
-                syn::parse2(quote!(::core::task::Poll::Ready(#expr))).unwrap(),
+                syn::parse_quote!(::core::task::Poll::Ready(#expr)),
             ));
         }
         fn visit_expr_mut(&mut self, i: &mut Expr) {
@@ -136,25 +138,144 @@ fn async_stream_block(expr_async: &mut syn::ExprAsync) -> Expr {
         }
     }
 
+    let context_arg =
+        Ident::new("_embrio_async_context_argument", Span::call_site());
     let mut block = &mut expr_async.block;
     let capture = &expr_async.capture;
     syn::visit_mut::VisitMut::visit_block_mut(&mut ReplaceYields, &mut block);
-    syn::visit_mut::VisitMut::visit_block_mut(&mut ExpandAwait, &mut block);
-    let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
+    syn::visit_mut::VisitMut::visit_block_mut(
+        &mut ExpandAwait(&context_arg),
+        &mut block,
+    );
     let stream = quote!({
         // Safety: We trust users not to come here, see that argument name we
         // generated above and use that in their code to break our other safety
         // guarantees. Our use of it in await! is safe because of reasons
         // probably described in the embrio-async safety notes.
         unsafe {
-            ::embrio_async::make_stream(static #capture |mut #arg: ::embrio_async::UnsafeContextRef| {
-                if false { #arg = yield ::core::task::Poll::Pending; }
+            ::embrio_async::make_stream(static #capture |mut #context_arg: ::embrio_async::UnsafeContextRef| {
+                if false { #context_arg = yield ::core::task::Poll::Pending; }
                 #block
             })
         }
     });
 
     syn::parse2(stream).unwrap()
+}
+
+// When an `async` closure contains a `yield` keyword, then its transformed into a sink.
+fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
+    struct ReplaceYieldsInSink<'a>(&'a Ident);
+
+    impl syn::visit_mut::VisitMut for ReplaceYieldsInSink<'_> {
+        fn visit_expr_mut(&mut self, i: &mut Expr) {
+            let unit: Expr = syn::parse_quote!(());
+            match i {
+                Expr::Closure(_) => {
+                    // Don't descend into closures
+                }
+                Expr::Paren(ExprParen { expr, .. })
+                    if matches!(expr.as_ref(), Expr::Yield(_)) =>
+                {
+                    // `yield ()` is sometimes parsed as `(yield ())`, remove
+                    // the unnecessary parentheses
+                    *i = expr.as_ref().clone();
+                    self.visit_expr_mut(i);
+                }
+                Expr::Yield(node) => {
+                    assert!(
+                        node.expr.is_none()
+                            || node.expr.as_deref() == Some(&unit),
+                        "Cannot yield values in a sink"
+                    );
+                    let context_arg = self.0;
+                    *i = syn::parse_quote!({
+                        let mut maybe_item = ::core::option::Option::None;
+                        loop {
+                            match maybe_item {
+                                ::core::option::Option::Some(item) => break item,
+                                ::core::option::Option::None => {
+                                    #context_arg = match #context_arg {
+                                        ::embrio_async::SinkContext::StartSend(item) => {
+                                            maybe_item = ::core::option::Option::Some(::core::option::Option::Some(item));
+                                            yield ::embrio_async::SinkResult::Accepted
+                                        }
+                                        ::embrio_async::SinkContext::Flush(cx) => {
+                                            yield ::embrio_async::SinkResult::Idle
+                                        }
+                                        ::embrio_async::SinkContext::Close(cx) => {
+                                            maybe_item = ::core::option::Option::Some(::core::option::Option::None);
+                                            ::embrio_async::SinkContext::Close(cx)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                i => {
+                    syn::visit_mut::visit_expr_mut(self, i);
+                }
+            }
+        }
+    }
+
+    let context_arg =
+        Ident::new("_embrio_async_sink_context_argument", Span::call_site());
+    let mut body = &mut closure.body;
+    let capture = &closure.capture;
+    assert!(
+        closure.inputs.len() < 2,
+        "a sink must take either 0 or 1 arguments"
+    );
+    // Pretty hacky, use the type of an unnamed input as the item type and the
+    // return type as the result type to derive the error from
+    let underscore_pat: Pat = syn::parse_quote!(_);
+    let input_ty = match closure.inputs.first() {
+        Some(pat) => match pat {
+            Pat::Type(PatType { pat, ty, .. }) if **pat == underscore_pat => {
+                ty.clone()
+            }
+            _ => panic!("a sink argument must be `_: T` where `T` is the input item type"),
+        }
+        None => syn::parse_quote!(_),
+    };
+    let return_val: Expr = match &closure.output {
+        ReturnType::Default => panic!("a sink return type like `Result<(), E>` must be given as inference doesn't work"),
+        ReturnType::Type(_, ty) => match ty.as_ref() {
+            Type::Path(TypePath { path, .. }) => {
+                let mut path = path.clone();
+                if let Some(PathSegment { arguments: PathArguments::AngleBracketed(args), ..}) = path.segments.last_mut() {
+                    if args.colon2_token.is_none() {
+                        args.colon2_token = Some(syn::parse_quote!(::));
+                    }
+                }
+                syn::parse_quote!(#path::Ok(()))
+            }
+            _ => panic!("a sink return type like `Result<(), E>` must be given as inference doesn't work"),
+        }
+    };
+    syn::visit_mut::VisitMut::visit_expr_mut(
+        &mut ReplaceYieldsInSink(&context_arg),
+        &mut body,
+    );
+    syn::visit_mut::VisitMut::visit_expr_mut(
+        &mut ExpandAwaitInSink(&context_arg),
+        &mut body,
+    );
+    syn::parse_quote!({
+        // Safety: We trust users not to come here, see that argument name we
+        // generated above and use that in their code to break our other safety
+        // guarantees. Our use of it in await! is safe because of reasons
+        // probably described in the embrio-async safety notes.
+        unsafe {
+            ::embrio_async::make_sink(static #capture |mut #context_arg: ::embrio_async::SinkContext<#input_ty>| {
+                if false { #context_arg = yield ::embrio_async::SinkResult::Idle; }
+                if false { return #return_val; }
+                #body
+            })
+        }
+    })
 }
 
 #[proc_macro_attribute]
@@ -180,9 +301,9 @@ fn async_fn_impl(mut item: ItemFn) -> TokenStream {
     quote!(#item)
 }
 
-struct ExpandAwait;
+struct ExpandAwait<'a>(&'a Ident);
 
-impl syn::visit_mut::VisitMut for ExpandAwait {
+impl syn::visit_mut::VisitMut for ExpandAwait<'_> {
     fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
         syn::visit_mut::visit_expr_mut(self, node);
         let base = match node {
@@ -190,7 +311,65 @@ impl syn::visit_mut::VisitMut for ExpandAwait {
             _ => return,
         };
 
-        *node = await_impl(base);
+        *node = await_impl(self.0, base);
+    }
+}
+
+struct ExpandAwaitInSink<'a>(&'a Ident);
+
+impl syn::visit_mut::VisitMut for ExpandAwaitInSink<'_> {
+    fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
+        syn::visit_mut::visit_expr_mut(self, node);
+
+        let input = match node {
+            syn::Expr::Await(syn::ExprAwait { base, .. }) => &*base,
+            _ => return,
+        };
+
+        let context_arg = self.0;
+        *node = syn::parse_quote!({
+            enum MaybeDone<F, T> { NotDone(F), Done(::core::option::Option<T>) }
+            let mut maybe_future = MaybeDone::NotDone(#input);
+            loop {
+                // Safety: We trust users to only call this from within an
+                // async_block created generator, they are static generators so must
+                // be immovable in memory, so creating a pinned reference into a
+                // generator-local is safe. de-referencing the argument pointer is
+                // safe for reasons explained in the embrio-async safety notes.
+                match &mut maybe_future {
+                    MaybeDone::NotDone(future) => {
+                        #context_arg = match #context_arg {
+                            ::embrio_async::SinkContext::StartSend(item) => {
+                                yield ::embrio_async::SinkResult::NotReady
+                            }
+                            | ::embrio_async::SinkContext::Flush(mut cx) => {
+                                let polled = unsafe {
+                                    let pin = ::core::pin::Pin::new_unchecked(future);
+                                    ::core::future::Future::poll(pin, cx.get_context())
+                                };
+                                if let ::core::task::Poll::Ready(x) = polled {
+                                    maybe_future = MaybeDone::Done(::core::option::Option::Some(x));
+                                }
+                                ::embrio_async::SinkContext::Flush(cx)
+                            }
+                            | ::embrio_async::SinkContext::Close(mut cx) => {
+                                let polled = unsafe {
+                                    let pin = ::core::pin::Pin::new_unchecked(future);
+                                    ::core::future::Future::poll(pin, cx.get_context())
+                                };
+                                if let ::core::task::Poll::Ready(x) = polled {
+                                    maybe_future = MaybeDone::Done(::core::option::Option::Some(x));
+                                }
+                                ::embrio_async::SinkContext::Close(cx)
+                            }
+                        };
+                    }
+                    MaybeDone::Done(e) => {
+                        break e.take().unwrap();
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -200,24 +379,31 @@ struct AsyncBlockTransform;
 impl VisitMut for AsyncBlockTransform {
     fn visit_expr_mut(&mut self, i: &mut Expr) {
         syn::visit_mut::visit_expr_mut(self, i);
-        let fut = match i {
+
+        let expr_contains_yield = contains_yield(i);
+        match i {
             Expr::Async(expr_async) => {
-                if contains_yield(&expr_async.block) {
-                    async_stream_block(expr_async)
+                if expr_contains_yield {
+                    *i = async_stream_block(expr_async);
                 } else {
-                    async_block(expr_async)
+                    *i = async_block(expr_async);
                 }
             }
-            _ => {
-                return;
+            Expr::Closure(closure) => {
+                if closure.asyncness.is_some() {
+                    if contains_yield(&closure.body) {
+                        *i = async_sink_block(closure);
+                    } else {
+                        panic!("async closures are unsupported: {:?}", closure)
+                    }
+                }
             }
-        };
-
-        *i = fut;
+            _ => (),
+        }
     }
 }
 
-fn contains_yield(block: &Block) -> bool {
+fn contains_yield(block: &Expr) -> bool {
     struct ContainsYield(bool);
 
     impl<'a> Visit<'a> for ContainsYield {
@@ -235,7 +421,7 @@ fn contains_yield(block: &Block) -> bool {
     }
 
     let mut visitor = ContainsYield(false);
-    syn::visit::visit_block(&mut visitor, block);
+    syn::visit::visit_expr(&mut visitor, block);
     visitor.0
 }
 
