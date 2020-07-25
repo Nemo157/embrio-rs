@@ -78,6 +78,7 @@ fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
     let block = &mut expr_async.block;
     let mv = &expr_async.capture;
     syn::visit_mut::visit_block_mut(&mut ExpandAwait, block);
+    let stmts = &block.stmts;
     let arg = Ident::new("_embrio_async_context_argument", Span::call_site());
     let tokens = quote!({
         // Safety: We trust users not to come here, see that argument name we
@@ -87,7 +88,7 @@ fn async_block(expr_async: &mut syn::ExprAsync) -> Expr {
         unsafe {
             ::embrio_async::make_future(static #mv |mut #arg: ::embrio_async::UnsafeContextRef| {
                 if false { #arg = yield ::core::task::Poll::Pending; }
-                #block
+                #(#stmts)*
             })
         }
     });
