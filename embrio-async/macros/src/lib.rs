@@ -9,8 +9,8 @@ use quote::quote;
 use syn::{
     parse_macro_input, visit::Visit, visit_mut::VisitMut, Block, Expr,
     ExprYield, Generics, Ident, ItemFn, Lifetime, LifetimeDef, Pat, PatType,
-    Receiver, ReturnType, TypeBareFn, TypeImplTrait, TypeParam, TypeParamBound,
-    TypeReference,
+    PathArguments, PathSegment, Receiver, ReturnType, Type, TypeBareFn,
+    TypeImplTrait, TypeParam, TypeParamBound, TypePath, TypeReference,
 };
 
 // A `.await` expression is transformed into,
@@ -220,7 +220,7 @@ fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
         "a sink must take either 0 or 1 arguments"
     );
     // Pretty hacky, use the type of an unnamed input as the item type and the
-    // return type as the error type
+    // return type as the result type to derive the error from
     let input_ty = match closure.inputs.first() {
         Some(pat) => match pat {
             Pat::Type(PatType { pat, ty, .. }) if &*pat == &syn::parse_quote!(_) => {
@@ -230,9 +230,20 @@ fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
         }
         None => syn::parse_quote!(_),
     };
-    let error_ty = match &closure.output {
-        ReturnType::Default => panic!("a sink return type representing the error must be given as inference doesn't work"),
-        ReturnType::Type(_, ty) => ty.clone(),
+    let return_val: Expr = match &closure.output {
+        ReturnType::Default => panic!("a sink return type like `Result<(), E>` must be given as inference doesn't work"),
+        ReturnType::Type(_, ty) => match ty.as_ref() {
+            Type::Path(TypePath { path, .. }) => {
+                let mut path = path.clone();
+                if let Some(PathSegment { arguments: PathArguments::AngleBracketed(args), ..}) = path.segments.last_mut() {
+                    if args.colon2_token.is_none() {
+                        args.colon2_token = Some(syn::parse_quote!(::));
+                    }
+                }
+                syn::parse_quote!(#path::Ok(()))
+            }
+            _ => panic!("a sink return type like `Result<(), E>` must be given as inference doesn't work"),
+        }
     };
     syn::visit_mut::VisitMut::visit_expr_mut(
         &mut ReplaceYieldsInSink(&context_arg),
@@ -250,7 +261,8 @@ fn async_sink_block(closure: &mut syn::ExprClosure) -> Expr {
         unsafe {
             ::embrio_async::make_sink(static #capture |mut #context_arg: ::embrio_async::SinkContext<#input_ty>| {
                 if false { #context_arg = yield ::embrio_async::SinkResult::Idle; }
-                ::core::result::Result::Ok::<_, #error_ty>(#body)
+                if false { return #return_val; }
+                #body
             })
         }
     })

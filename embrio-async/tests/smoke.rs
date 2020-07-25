@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(generators)]
+#![feature(generators, async_closure)]
 
 use embrio_async::embrio_async;
 use ergo_pin::ergo_pin;
@@ -84,4 +84,53 @@ impl Foo {
     async fn spam(&mut self, f: fn(&mut usize)) {
         f(&mut self.0)
     }
+}
+
+#[embrio_async]
+#[test]
+fn smoke_sink() {
+    let future = async {
+        let mut sum = 0;
+        {
+            let slow = move |i| async move { i };
+            let stream = async {
+                yield async { slow(5) }.await;
+                yield async { slow(6) }.await;
+            };
+            let sink = async || -> Result<(), ()> {
+                while let Some(future) = yield () {
+                    sum += future.await;
+                }
+                sum += 7;
+                Ok(())
+            };
+            stream.map(Ok).forward(sink).await.unwrap();
+        }
+        sum
+    };
+    assert_eq!(block_on(future), 18);
+}
+
+#[embrio_async]
+#[test]
+fn smoke_sink_typed() {
+    let future = async {
+        let mut sum = 0;
+        {
+            let stream = async {
+                yield Ok(5);
+                yield Ok(6);
+            };
+            let sink = async |_: Result<u32, u64>| -> Result<(), u64> {
+                while let Some(value) = (yield) {
+                    sum += value?;
+                }
+                sum += 7;
+                Ok(())
+            };
+            stream.map(Ok).forward(sink).await.unwrap();
+        }
+        sum
+    };
+    assert_eq!(block_on(future), 18);
 }

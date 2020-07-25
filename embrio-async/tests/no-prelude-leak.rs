@@ -55,11 +55,12 @@ fn smoke_sink() {
                 yield async { slow(5) }.await;
                 yield async { slow(6) }.await;
             };
-            let sink = async || -> ! {
+            let sink = async || -> ::core::result::Result<(), !> {
                 while let ::core::option::Option::Some(future) = yield () {
                     sum += future.await;
                 }
                 sum += 7;
+                ::core::result::Result::Ok(())
             };
             ::pin_utils::pin_mut!(sink);
             let stream = ::futures::stream::StreamExt::map(
@@ -88,11 +89,12 @@ fn smoke_sink_typed() {
                 yield ::core::result::Result::Ok(5);
                 yield ::core::result::Result::Ok(6);
             };
-            let sink = async |_: ::core::result::Result<u32, u64>| -> u64 {
+            let sink = async |_: ::core::result::Result<u32, u64>| -> ::core::result::Result<(), u64> {
                 while let ::core::option::Option::Some(value) = yield () {
                     sum += value?;
                 }
                 sum += 7;
+                ::core::result::Result::Ok(())
             };
             ::pin_utils::pin_mut!(sink);
             let stream = ::futures::stream::StreamExt::map(
