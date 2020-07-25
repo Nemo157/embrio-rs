@@ -1,6 +1,7 @@
 #![no_std]
 #![no_implicit_prelude]
-#![feature(generators)]
+#![feature(generators, impl_trait_in_bindings, async_closure, never_type)]
+#![allow(incomplete_features)]
 
 extern crate embrio_async;
 
@@ -49,13 +50,13 @@ fn smoke_sink() {
     let future = async {
         let mut sum = 0;
         {
-            let slow = async move |i| i;
+            let slow = move |i| async move { i };
             let stream = async {
                 yield async { slow(5) }.await;
                 yield async { slow(6) }.await;
             };
-            let sink = async |yield input| {
-                while let ::core::option::Option::Some(future) = input.await {
+            let sink = async || -> ! {
+                while let ::core::option::Option::Some(future) = yield () {
                     sum += future.await;
                 }
                 sum += 7;
@@ -65,13 +66,15 @@ fn smoke_sink() {
                 stream,
                 ::core::result::Result::Ok,
             );
-            ::futures::stream::StreamExt::forward(stream, sink).await.unwrap();
+            ::futures::stream::StreamExt::forward(stream, sink)
+                .await
+                .unwrap();
         }
         sum
     };
     {
-        use ::std::panic;
-        ::std::assert_eq!(::futures::executor::block_on(future), 18);
+        use ::core::panic;
+        ::core::assert_eq!(::futures::executor::block_on(future), 18);
     }
 }
 
@@ -82,12 +85,12 @@ fn smoke_sink_typed() {
         let mut sum = 0;
         {
             let stream = async {
-                yield 5;
-                yield 6;
+                yield ::core::result::Result::Ok(5);
+                yield ::core::result::Result::Ok(6);
             };
-            let sink = async |yield input: u32| {
-                while let ::core::option::Option::Some(value) = input.await {
-                    sum += value;
+            let sink = async |_: ::core::result::Result<u32, u64>| -> u64 {
+                while let ::core::option::Option::Some(value) = yield () {
+                    sum += value?;
                 }
                 sum += 7;
             };
@@ -96,12 +99,14 @@ fn smoke_sink_typed() {
                 stream,
                 ::core::result::Result::Ok,
             );
-            ::futures::stream::StreamExt::forward(stream, sink).await.unwrap();
+            ::futures::stream::StreamExt::forward(stream, sink)
+                .await
+                .unwrap();
         }
         sum
     };
     {
-        use ::std::panic;
-        ::std::assert_eq!(::futures::executor::block_on(future), 18);
+        use ::core::panic;
+        ::core::assert_eq!(::futures::executor::block_on(future), 18);
     }
 }

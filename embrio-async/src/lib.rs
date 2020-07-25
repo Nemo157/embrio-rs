@@ -14,6 +14,7 @@ use core::{
     task::{self, Poll},
 };
 use futures_core::stream::Stream;
+use futures_sink::Sink;
 
 pub use embrio_async_macros::embrio_async;
 
@@ -99,6 +100,80 @@ where
     }
 }
 
+impl<T, E, G> Sink<T> for FutureImpl<G>
+where
+    G: Generator<SinkContext<T>, Yield = SinkResult, Return = Result<(), E>>,
+{
+    type Error = E;
+
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        self.poll_flush(cx)
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::Error> {
+        match self
+            .project()
+            .generator
+            .resume(SinkContext::StartSend(item))
+        {
+            GeneratorState::Yielded(SinkResult::Idle) => {
+                panic!("sink idle after start send")
+            }
+            GeneratorState::Yielded(SinkResult::NotReady) => {
+                panic!("sink rejected send")
+            }
+            GeneratorState::Yielded(SinkResult::Accepted) => Ok(()),
+            GeneratorState::Complete(Ok(())) => {
+                panic!("sink unexpectedly closed")
+            }
+            GeneratorState::Complete(Err(err)) => Err(err),
+        }
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        match self
+            .project()
+            .generator
+            .resume(SinkContext::Flush(cx.into()))
+        {
+            GeneratorState::Yielded(SinkResult::Idle) => Poll::Ready(Ok(())),
+            GeneratorState::Yielded(SinkResult::NotReady) => Poll::Pending,
+            GeneratorState::Yielded(SinkResult::Accepted) => {
+                panic!("sink accepted during flush")
+            }
+            GeneratorState::Complete(Ok(())) => Poll::Ready(Ok(())),
+            GeneratorState::Complete(Err(err)) => Poll::Ready(Err(err)),
+        }
+    }
+
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        match self
+            .project()
+            .generator
+            .resume(SinkContext::Close(cx.into()))
+        {
+            GeneratorState::Yielded(SinkResult::Idle) => {
+                panic!("should have returned")
+            }
+            GeneratorState::Yielded(SinkResult::NotReady) => Poll::Pending,
+            GeneratorState::Yielded(SinkResult::Accepted) => {
+                panic!("sink accepted during close")
+            }
+            GeneratorState::Complete(Ok(())) => Poll::Ready(Ok(())),
+            GeneratorState::Complete(Err(err)) => Poll::Ready(Err(err)),
+        }
+    }
+}
+
 /// `Send`-able wrapper around a `*mut Context`
 ///
 /// This exists to allow the generator inside a `FutureImpl` to be `Send`,
@@ -140,6 +215,18 @@ impl From<&mut task::Context<'_>> for UnsafeContextRef {
 
 unsafe impl Send for UnsafeContextRef {}
 
+pub enum SinkContext<T> {
+    StartSend(T),
+    Flush(UnsafeContextRef),
+    Close(UnsafeContextRef),
+}
+
+pub enum SinkResult {
+    Idle,
+    NotReady,
+    Accepted,
+}
+
 /// # Safety
 ///
 /// This must only be called by the `#[embrio_async]` proc-macro.
@@ -160,6 +247,18 @@ where
 pub unsafe fn make_stream<T, G>(generator: G) -> impl Stream<Item = T>
 where
     G: Generator<UnsafeContextRef, Return = (), Yield = Poll<T>>,
+{
+    FutureImpl { generator }
+}
+
+/// # Safety
+///
+/// This must only be called by the `#[embrio_async]` proc-macro.
+///
+/// (The provided generator must obey safety invariants documented elsewhere).
+pub unsafe fn make_sink<T, E, G>(generator: G) -> impl Sink<T, Error = E>
+where
+    G: Generator<SinkContext<T>, Return = Result<(), E>, Yield = SinkResult>,
 {
     FutureImpl { generator }
 }
