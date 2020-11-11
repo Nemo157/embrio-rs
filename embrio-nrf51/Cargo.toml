@@ -5,7 +5,7 @@ authors = ["Wim Looman <wim@nemo157.com>"]
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.6.1"
+cortex-m = "0.7.0"
 cortex-m-rt = "0.6.1"
 nrf51 = "0.7.0"
 
